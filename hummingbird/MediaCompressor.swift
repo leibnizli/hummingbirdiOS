@@ -18,15 +18,20 @@ final class MediaCompressor {
     static func compressImage(_ data: Data, settings: CompressionSettings) throws -> Data {
         guard var image = UIImage(data: data) else { throw MediaCompressionError.imageDecodeFailed }
         
-        // 修正图片方向，防止压缩后旋转
-        image = image.fixOrientation()
-        
-        // 根据设置调整尺寸
+        // 根据设置调整尺寸（在修正方向之前，使用原始尺寸）
         let maxWidth = settings.actualImageMaxWidth
         let maxHeight = settings.actualImageMaxHeight
+        print("压缩设置 - maxWidth:\(maxWidth), maxHeight:\(maxHeight)")
+        print("原始图片尺寸 - width:\(image.size.width), height:\(image.size.height)")
+        
         if maxWidth > 0 || maxHeight > 0 {
             image = resizeImage(image, maxWidth: maxWidth, maxHeight: maxHeight)
+            print("调整后尺寸 - width:\(image.size.width), height:\(image.size.height)")
         }
+        
+        // 修正图片方向，防止压缩后旋转（在调整尺寸之后）
+        image = image.fixOrientation()
+        print("修正方向后尺寸 - width:\(image.size.width), height:\(image.size.height)")
 
         // 检测原始图片格式，保持原有格式
         let format: ImageFormat = detectImageFormat(data: data)
@@ -62,25 +67,41 @@ final class MediaCompressor {
     
     private static func resizeImage(_ image: UIImage, maxWidth: Int, maxHeight: Int) -> UIImage {
         let size = image.size
-        var targetSize = size
         
-        // 计算缩放比例
-        if maxWidth > 0 && size.width > CGFloat(maxWidth) {
-            let ratio = CGFloat(maxWidth) / size.width
-            targetSize = CGSize(width: CGFloat(maxWidth), height: size.height * ratio)
-        }
-        
-        if maxHeight > 0 && targetSize.height > CGFloat(maxHeight) {
-            let ratio = CGFloat(maxHeight) / targetSize.height
-            targetSize = CGSize(width: targetSize.width * ratio, height: CGFloat(maxHeight))
-        }
-        
-        // 如果尺寸没变，直接返回
-        if targetSize == size {
+        // 如果没有设置限制，直接返回
+        if maxWidth <= 0 && maxHeight <= 0 {
             return image
         }
         
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        // 计算缩放比例，保持宽高比
+        var scale: CGFloat = 1.0
+        
+        if maxWidth > 0 && maxHeight > 0 {
+            // 同时限制宽高，取较小的缩放比例
+            let widthScale = CGFloat(maxWidth) / size.width
+            let heightScale = CGFloat(maxHeight) / size.height
+            scale = min(widthScale, heightScale, 1.0)  // 不放大，只缩小
+        } else if maxWidth > 0 {
+            // 只限制宽度
+            scale = min(CGFloat(maxWidth) / size.width, 1.0)
+        } else if maxHeight > 0 {
+            // 只限制高度
+            scale = min(CGFloat(maxHeight) / size.height, 1.0)
+        }
+        
+        // 如果不需要缩放，直接返回
+        if scale >= 1.0 {
+            return image
+        }
+        
+        // 计算目标尺寸
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        
+        // 重要：设置 scale = 1.0，确保输出的像素尺寸就是 targetSize
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0  // 强制使用 1.0，避免 Retina 屏幕影响
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
@@ -225,59 +246,15 @@ extension UIImage {
         
         guard let cgImage = cgImage else { return self }
         
-        // 计算正确的变换矩阵
-        var transform = CGAffineTransform.identity
+        // 使用 UIGraphicsImageRenderer 重新绘制，自动处理方向
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0  // 使用 1.0 保持像素尺寸不变
+        format.opaque = false
         
-        switch imageOrientation {
-        case .down, .downMirrored:
-            transform = transform.translatedBy(x: size.width, y: size.height)
-            transform = transform.rotated(by: .pi)
-        case .left, .leftMirrored:
-            transform = transform.translatedBy(x: size.width, y: 0)
-            transform = transform.rotated(by: .pi / 2)
-        case .right, .rightMirrored:
-            transform = transform.translatedBy(x: 0, y: size.height)
-            transform = transform.rotated(by: -.pi / 2)
-        default:
-            break
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
         }
-        
-        switch imageOrientation {
-        case .upMirrored, .downMirrored:
-            transform = transform.translatedBy(x: size.width, y: 0)
-            transform = transform.scaledBy(x: -1, y: 1)
-        case .leftMirrored, .rightMirrored:
-            transform = transform.translatedBy(x: size.height, y: 0)
-            transform = transform.scaledBy(x: -1, y: 1)
-        default:
-            break
-        }
-        
-        // 创建上下文并绘制图片
-        guard let colorSpace = cgImage.colorSpace,
-              let context = CGContext(
-                data: nil,
-                width: Int(size.width),
-                height: Int(size.height),
-                bitsPerComponent: cgImage.bitsPerComponent,
-                bytesPerRow: 0,
-                space: colorSpace,
-                bitmapInfo: cgImage.bitmapInfo.rawValue
-              ) else {
-            return self
-        }
-        
-        context.concatenate(transform)
-        
-        switch imageOrientation {
-        case .left, .leftMirrored, .right, .rightMirrored:
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: size.height, height: size.width))
-        default:
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
-        }
-        
-        guard let newCGImage = context.makeImage() else { return self }
-        return UIImage(cgImage: newCGImage)
     }
 }
 
