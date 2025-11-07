@@ -1,11 +1,7 @@
 import Foundation
 import UIKit
 import AVFoundation
-
-struct ImageCompressionOptions {
-    let maxKilobytes: Int
-    let preferHEIC: Bool
-}
+import Combine
 
 enum MediaCompressionError: Error {
     case imageDecodeFailed
@@ -19,60 +15,78 @@ enum ImageFormat {
 }
 
 final class MediaCompressor {
-    static func compressImage(_ data: Data, options: ImageCompressionOptions) throws -> Data {
-        guard let image = UIImage(data: data) else { throw MediaCompressionError.imageDecodeFailed }
+    static func compressImage(_ data: Data, settings: CompressionSettings) throws -> Data {
+        guard var image = UIImage(data: data) else { throw MediaCompressionError.imageDecodeFailed }
         
         // 修正图片方向，防止压缩后旋转
-        let orientedImage = image.fixOrientation()
+        image = image.fixOrientation()
+        
+        // 根据设置调整尺寸
+        let maxWidth = settings.actualImageMaxWidth
+        let maxHeight = settings.actualImageMaxHeight
+        if maxWidth > 0 || maxHeight > 0 {
+            image = resizeImage(image, maxWidth: maxWidth, maxHeight: maxHeight)
+        }
 
-        let targetBytes = options.maxKilobytes > 0 ? options.maxKilobytes * 1024 : Int.max
-        let prefersHEIC = options.preferHEIC && UIImage(named: "") == nil // keep compiler from stripping UIKit
-
-        let format: ImageFormat = options.preferHEIC ? .heic : .jpeg
-        return try compressUIImage(orientedImage, toMaxBytes: targetBytes, format: format)
+        // 检测原始图片格式，保持原有格式
+        let format: ImageFormat = detectImageFormat(data: data)
+        return encode(image: image, quality: CGFloat(settings.imageQuality), format: format)
     }
-
-    private static func compressUIImage(_ image: UIImage, toMaxBytes maxBytes: Int, format: ImageFormat) throws -> Data {
-        var compression: CGFloat = 0.9
-        var lower: CGFloat = 0.0
-        var upper: CGFloat = 1.0
-        var bestData: Data?
-
-        for _ in 0..<8 {
-            compression = (lower + upper) / 2.0
-            let data = encode(image: image, quality: compression, format: format)
-            if data.count > maxBytes {
-                upper = compression
-            } else {
-                bestData = data
-                lower = compression
+    
+    private static func detectImageFormat(data: Data) -> ImageFormat {
+        // 检查文件头来判断格式
+        guard data.count > 12 else { return .jpeg }
+        
+        let bytes = [UInt8](data.prefix(12))
+        
+        // HEIC/HEIF 格式检测 (ftyp box)
+        if bytes.count >= 12 {
+            let ftypSignature = String(bytes: bytes[4..<8], encoding: .ascii)
+            if ftypSignature == "ftyp" {
+                let brand = String(bytes: bytes[8..<12], encoding: .ascii)
+                if brand?.hasPrefix("heic") == true || brand?.hasPrefix("heix") == true ||
+                   brand?.hasPrefix("hevc") == true || brand?.hasPrefix("mif1") == true {
+                    return .heic
+                }
             }
         }
-
-        if let best = bestData, best.count <= maxBytes {
-            return best
+        
+        // JPEG 格式检测 (FF D8 FF)
+        if bytes.count >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
+            return .jpeg
         }
-
-        // Fallback to iterative resize if still too large
-        var resized = image
-        var currentData = encode(image: resized, quality: lower, format: format)
-        while currentData.count > maxBytes && resized.size.width > 200 && resized.size.height > 200 {
-            let newSize = CGSize(width: resized.size.width * 0.85, height: resized.size.height * 0.85)
-            UIGraphicsBeginImageContextWithOptions(newSize, true, 1.0)
-            resized.draw(in: CGRect(origin: .zero, size: newSize))
-            let next = UIGraphicsGetImageFromCurrentImageContext()
-            UIGraphicsEndImageContext()
-            if let next = next {
-                resized = next
-                currentData = encode(image: resized, quality: lower, format: format)
-            } else {
-                break
-            }
+        
+        // 默认使用 JPEG
+        return .jpeg
+    }
+    
+    private static func resizeImage(_ image: UIImage, maxWidth: Int, maxHeight: Int) -> UIImage {
+        let size = image.size
+        var targetSize = size
+        
+        // 计算缩放比例
+        if maxWidth > 0 && size.width > CGFloat(maxWidth) {
+            let ratio = CGFloat(maxWidth) / size.width
+            targetSize = CGSize(width: CGFloat(maxWidth), height: size.height * ratio)
         }
-        return currentData
+        
+        if maxHeight > 0 && targetSize.height > CGFloat(maxHeight) {
+            let ratio = CGFloat(maxHeight) / targetSize.height
+            targetSize = CGSize(width: targetSize.width * ratio, height: CGFloat(maxHeight))
+        }
+        
+        // 如果尺寸没变，直接返回
+        if targetSize == size {
+            return image
+        }
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
     }
 
-    private static func encode(image: UIImage, quality: CGFloat, format: ImageFormat) -> Data {
+    static func encode(image: UIImage, quality: CGFloat, format: ImageFormat) -> Data {
         switch format {
         case .jpeg:
             return image.jpegData(compressionQuality: max(0.01, min(1.0, quality))) ?? Data()
@@ -95,22 +109,32 @@ final class MediaCompressor {
 
     static func compressVideo(
         at sourceURL: URL,
-        preset: String = AVAssetExportPresetMediumQuality,
+        settings: CompressionSettings,
         outputFileType: AVFileType = .mp4,
         progressHandler: @escaping (Float) -> Void,
         completion: @escaping (Result<URL, Error>) -> Void
     ) -> AVAssetExportSession? {
         let asset = AVURLAsset(url: sourceURL)
+        
+        // 根据质量选择预设
+        let preset = qualityToPreset(settings.videoQuality)
+        
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: preset) else {
             completion(.failure(MediaCompressionError.videoExportFailed))
             return nil
         }
+        
         let outputURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("compressed_\(UUID().uuidString)")
             .appendingPathExtension("mp4")
         exportSession.outputURL = outputURL
         exportSession.outputFileType = outputFileType
         exportSession.shouldOptimizeForNetworkUse = true
+        
+        // 设置视频分辨率
+        if let targetSize = getTargetVideoSize(settings: settings, asset: asset) {
+            exportSession.videoComposition = createVideoComposition(asset: asset, targetSize: targetSize)
+        }
 
         let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { t in
             progressHandler(exportSession.progress)
@@ -131,6 +155,63 @@ final class MediaCompressor {
             }
         }
         return exportSession
+    }
+    
+    private static func qualityToPreset(_ quality: Double) -> String {
+        switch quality {
+        case 0..<0.4:
+            return AVAssetExportPresetLowQuality
+        case 0.4..<0.7:
+            return AVAssetExportPresetMediumQuality
+        default:
+            return AVAssetExportPresetHighestQuality
+        }
+    }
+    
+    private static func getTargetVideoSize(settings: CompressionSettings, asset: AVAsset) -> CGSize? {
+        switch settings.videoResolution {
+        case .original:
+            return nil
+        case .custom:
+            if let width = Int(settings.customWidth), let height = Int(settings.customHeight), width > 0, height > 0 {
+                return CGSize(width: width, height: height)
+            }
+            return nil
+        default:
+            return settings.videoResolution.size
+        }
+    }
+    
+    private static func createVideoComposition(asset: AVAsset, targetSize: CGSize) -> AVMutableVideoComposition {
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+            return AVMutableVideoComposition()
+        }
+        
+        let composition = AVMutableVideoComposition()
+        composition.renderSize = targetSize
+        composition.frameDuration = CMTime(value: 1, timescale: 30)
+        
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+        
+        let transformer = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+        
+        let videoSize = videoTrack.naturalSize
+        let transform = videoTrack.preferredTransform
+        
+        // 计算缩放比例
+        let scaleX = targetSize.width / videoSize.width
+        let scaleY = targetSize.height / videoSize.height
+        let scale = min(scaleX, scaleY)
+        
+        var finalTransform = transform
+        finalTransform = finalTransform.scaledBy(x: scale, y: scale)
+        
+        transformer.setTransform(finalTransform, at: .zero)
+        instruction.layerInstructions = [transformer]
+        composition.instructions = [instruction]
+        
+        return composition
     }
 }
 

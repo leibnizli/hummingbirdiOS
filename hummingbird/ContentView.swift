@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var mediaItems: [MediaItem] = []
     @State private var isCompressing = false
+    @State private var showingSettings = false
+    @StateObject private var settings = CompressionSettings()
     
     var body: some View {
         NavigationView {
@@ -63,9 +65,19 @@ struct ContentView: View {
             }
             .navigationTitle("媒体压缩")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
         }
         .onChange(of: selectedItems) { _, newItems in
             Task { await loadSelectedItems(newItems) }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(settings: settings)
         }
     }
     
@@ -109,9 +121,21 @@ struct ContentView: View {
     }
     
     private func generateThumbnail(from image: UIImage, size: CGSize = CGSize(width: 80, height: 80)) -> UIImage? {
-        let renderer = UIGraphicsImageRenderer(size: size)
+        let aspectRatio = image.size.width / image.size.height
+        let targetAspectRatio = size.width / size.height
+        
+        var targetSize = size
+        if aspectRatio > targetAspectRatio {
+            // 图片更宽，以宽度为准
+            targetSize.height = size.width / aspectRatio
+        } else {
+            // 图片更高，以高度为准
+            targetSize.width = size.height * aspectRatio
+        }
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
         return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
     
@@ -119,7 +143,7 @@ struct ContentView: View {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 80, height: 80)
+        generator.maximumSize = CGSize(width: 160, height: 160)  // 使用更大的尺寸以保持清晰度
         
         Task {
             do {
@@ -172,7 +196,7 @@ struct ContentView: View {
         do {
             let compressed = try MediaCompressor.compressImage(
                 originalData,
-                options: .init(maxKilobytes: 800, preferHEIC: true)
+                settings: settings
             )
             
             await MainActor.run {
@@ -201,7 +225,7 @@ struct ContentView: View {
         await withCheckedContinuation { continuation in
             let exportSession = MediaCompressor.compressVideo(
                 at: sourceURL,
-                preset: AVAssetExportPresetMediumQuality,
+                settings: settings,
                 outputFileType: .mp4,
                 progressHandler: { progress in
                     Task { @MainActor in
@@ -247,11 +271,13 @@ struct MediaItemRow: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 // 预览图
-                Group {
+                ZStack {
+                    Color.gray.opacity(0.2)
+                    
                     if let thumbnail = item.thumbnailImage {
                         Image(uiImage: thumbnail)
                             .resizable()
-                            .scaledToFill()
+                            .scaledToFit()
                     } else {
                         Image(systemName: item.isVideo ? "video.fill" : "photo.fill")
                             .font(.title)
@@ -259,7 +285,6 @@ struct MediaItemRow: View {
                     }
                 }
                 .frame(width: 80, height: 80)
-                .background(Color.gray.opacity(0.2))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 
                 // 信息区域
@@ -385,6 +410,127 @@ struct MediaItemRow: View {
             } catch {
                 print("保存失败: \(error.localizedDescription)")
             }
+        }
+    }
+}
+
+// MARK: - 设置视图
+struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var settings: CompressionSettings
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    Picker("分辨率", selection: $settings.imageResolution) {
+                        ForEach(ImageResolution.allCases) { resolution in
+                            Text(resolution.rawValue).tag(resolution)
+                        }
+                    }
+                    
+                    if settings.imageResolution == .custom {
+                        HStack {
+                            Text("最大宽度")
+                            Spacer()
+                            TextField("不限制", value: $settings.imageMaxWidth, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                            Text("px")
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        HStack {
+                            Text("最大高度")
+                            Spacer()
+                            TextField("不限制", value: $settings.imageMaxHeight, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                            Text("px")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("图片质量")
+                            Spacer()
+                            Text("\(Int(settings.imageQuality * 100))%")
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: $settings.imageQuality, in: 0.1...1.0, step: 0.05)
+                    }
+                } header: {
+                    Text("图片压缩")
+                } footer: {
+                    Text("分辨率会等比例缩放，质量越高文件越大")
+                }
+                
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("视频质量")
+                            Spacer()
+                            Text("\(Int(settings.videoQuality * 100))%")
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: $settings.videoQuality, in: 0.1...1.0, step: 0.05)
+                    }
+                    
+                    Picker("分辨率", selection: $settings.videoResolution) {
+                        ForEach(VideoResolution.allCases) { resolution in
+                            Text(resolution.rawValue).tag(resolution)
+                        }
+                    }
+                    
+                    if settings.videoResolution == .custom {
+                        HStack {
+                            Text("宽度")
+                            Spacer()
+                            TextField("1920", text: $settings.customWidth)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                            Text("px")
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        HStack {
+                            Text("高度")
+                            Spacer()
+                            TextField("1080", text: $settings.customHeight)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                            Text("px")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("视频压缩")
+                } footer: {
+                    Text("质量越高，文件越大。分辨率会等比例缩放")
+                }
+            }
+            .navigationTitle("压缩设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func qualityLabel(_ quality: Double) -> String {
+        switch quality {
+        case 0..<0.4: return "低"
+        case 0.4..<0.7: return "中"
+        default: return "高"
         }
     }
 }
