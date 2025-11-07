@@ -60,8 +60,8 @@ class MediaItem: Identifiable, ObservableObject {
     // 格式化字节大小
     func formatBytes(_ bytes: Int) -> String {
         let kb = Double(bytes) / 1024.0
-        if kb < 1024 { return String(format: "%.0f KB", kb) }
-        return String(format: "%.2f MB", kb / 1024.0)
+        if kb < 1024 { return String(format: "%.3f KB", kb) }
+        return String(format: "%.3f MB", kb / 1024.0)
     }
     
     // 格式化分辨率

@@ -46,13 +46,49 @@ enum ImageResolution: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - 比特率控制模式
+enum BitrateControlMode: String, CaseIterable, Identifiable {
+    case auto = "自动（根据质量）"
+    case manual = "手动设置"
+    
+    var id: String { rawValue }
+}
+
 // MARK: - 压缩设置
 class CompressionSettings: ObservableObject {
-    // 图片设置 - 只保留质量设置
+    // 图片设置
     @Published var imageQuality: Double = 0.8
     
-    // 视频设置 - 只保留质量设置
-    @Published var videoQuality: Double = 0.6
+    // 视频设置（保持原始分辨率，调整比特率）
+    @Published var bitrateControlMode: BitrateControlMode = .auto
+    @Published var customBitrate: Double = 5.0  // Mbps，用于手动模式
+    
+    // 计算实际使用的比特率（bps）
+    func calculateBitrate(for videoSize: CGSize) -> Int {
+        switch bitrateControlMode {
+        case .auto:
+            // 根据分辨率自动计算合理的比特率
+            let pixelCount = videoSize.width * videoSize.height
+            
+            // 使用更保守的比特率计算，确保文件变小
+            // 720p (1280x720 = 921,600) -> ~2 Mbps
+            // 1080p (1920x1080 = 2,073,600) -> ~4 Mbps
+            // 4K (3840x2160 = 8,294,400) -> ~8 Mbps
+            let bitsPerPixel: Double
+            if pixelCount <= 1_000_000 {  // <= 720p
+                bitsPerPixel = 0.08
+            } else if pixelCount <= 2_500_000 {  // <= 1080p
+                bitsPerPixel = 0.07
+            } else {  // > 1080p
+                bitsPerPixel = 0.06
+            }
+            
+            return Int(pixelCount * bitsPerPixel)
+        case .manual:
+            // 使用用户设置的比特率（Mbps 转 bps）
+            return Int(customBitrate * 1_000_000)
+        }
+    }
 }
 
 // MARK: - 视频分辨率

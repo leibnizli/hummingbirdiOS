@@ -56,7 +56,7 @@ struct CompressionView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(mediaItems) { item in
-                                MediaItemRow(item: item)
+                                CompressionItemRow(item: item)
                             }
                         }
                         .padding()

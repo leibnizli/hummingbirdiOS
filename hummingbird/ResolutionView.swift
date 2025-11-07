@@ -91,7 +91,7 @@ struct ResolutionView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(mediaItems) { item in
-                                MediaItemRow(item: item, showCompressionInfo: false)
+                                ResolutionItemRow(item: item)
                             }
                         }
                         .padding()

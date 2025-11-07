@@ -53,48 +53,6 @@ final class MediaCompressor {
         // 默认使用 JPEG
         return .jpeg
     }
-    
-    private static func resizeImage(_ image: UIImage, maxWidth: Int, maxHeight: Int) -> UIImage {
-        let size = image.size
-        
-        // 如果没有设置限制，直接返回
-        if maxWidth <= 0 && maxHeight <= 0 {
-            return image
-        }
-        
-        // 计算缩放比例，保持宽高比
-        var scale: CGFloat = 1.0
-        
-        if maxWidth > 0 && maxHeight > 0 {
-            // 同时限制宽高，取较小的缩放比例
-            let widthScale = CGFloat(maxWidth) / size.width
-            let heightScale = CGFloat(maxHeight) / size.height
-            scale = min(widthScale, heightScale, 1.0)  // 不放大，只缩小
-        } else if maxWidth > 0 {
-            // 只限制宽度
-            scale = min(CGFloat(maxWidth) / size.width, 1.0)
-        } else if maxHeight > 0 {
-            // 只限制高度
-            scale = min(CGFloat(maxHeight) / size.height, 1.0)
-        }
-        
-        // 如果不需要缩放，直接返回
-        if scale >= 1.0 {
-            return image
-        }
-        
-        // 计算目标尺寸
-        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
-        
-        // 重要：设置 scale = 1.0，确保输出的像素尺寸就是 targetSize
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1.0  // 强制使用 1.0，避免 Retina 屏幕影响
-        
-        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
-        }
-    }
 
     static func encode(image: UIImage, quality: CGFloat, format: ImageFormat) -> Data {
         switch format {
@@ -126,51 +84,335 @@ final class MediaCompressor {
     ) -> AVAssetExportSession? {
         let asset = AVURLAsset(url: sourceURL)
         
-        // 根据质量选择预设
-        let preset = qualityToPreset(settings.videoQuality)
-        print("使用的导出预设: \(preset)")
-        
-        guard let exportSession = AVAssetExportSession(asset: asset, presetName: preset) else {
+        // 获取视频轨道信息
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
             completion(.failure(MediaCompressionError.videoExportFailed))
             return nil
         }
         
+        let videoSize = videoTrack.naturalSize
+        let bitrate = settings.calculateBitrate(for: videoSize)
+        
+        print("视频压缩 - 原始分辨率: \(videoSize), 目标比特率: \(bitrate) bps (\(Double(bitrate) / 1_000_000) Mbps)")
+        
+        // 创建输出 URL
         let outputURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("compressed_\(UUID().uuidString)")
             .appendingPathExtension("mp4")
+        
+        // 删除已存在的文件
+        try? FileManager.default.removeItem(at: outputURL)
+        
+        // 使用 Passthrough 预设，然后通过 VideoComposition 应用压缩设置
+        // 注意：AVAssetExportSession 的预设选项有限，我们需要使用自定义的 videoComposition
+        guard let exportSession = AVAssetExportSession(
+            asset: asset,
+            presetName: AVAssetExportPresetPassthrough
+        ) else {
+            // 如果 Passthrough 不可用，尝试使用 MediumQuality
+            guard let fallbackSession = AVAssetExportSession(
+                asset: asset,
+                presetName: AVAssetExportPresetMediumQuality
+            ) else {
+                completion(.failure(MediaCompressionError.videoExportFailed))
+                return nil
+            }
+            return configureExportSession(
+                fallbackSession,
+                asset: asset,
+                videoTrack: videoTrack,
+                videoSize: videoSize,
+                bitrate: bitrate,
+                outputURL: outputURL,
+                outputFileType: outputFileType,
+                progressHandler: progressHandler,
+                completion: completion
+            )
+        }
+        
+        return configureExportSession(
+            exportSession,
+            asset: asset,
+            videoTrack: videoTrack,
+            videoSize: videoSize,
+            bitrate: bitrate,
+            outputURL: outputURL,
+            outputFileType: outputFileType,
+            progressHandler: progressHandler,
+            completion: completion
+        )
+    }
+    
+    private static func configureExportSession(
+        _ exportSession: AVAssetExportSession,
+        asset: AVAsset,
+        videoTrack: AVAssetTrack,
+        videoSize: CGSize,
+        bitrate: Int,
+        outputURL: URL,
+        outputFileType: AVFileType,
+        progressHandler: @escaping (Float) -> Void,
+        completion: @escaping (Result<URL, Error>) -> Void
+    ) -> AVAssetExportSession {
         exportSession.outputURL = outputURL
         exportSession.outputFileType = outputFileType
         exportSession.shouldOptimizeForNetworkUse = true
-
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { t in
-            progressHandler(exportSession.progress)
-            if exportSession.status != .exporting { t.invalidate() }
+        
+        // 创建视频合成来保持原始分辨率和变换，并应用压缩设置
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = videoSize
+        
+        // 保持原始帧率
+        let frameRate = videoTrack.nominalFrameRate
+        if frameRate > 0 {
+            videoComposition.frameDuration = CMTime(value: 1, timescale: Int32(frameRate))
+        } else {
+            videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
         }
-        RunLoop.main.add(timer, forMode: .common)
-
-        exportSession.exportAsynchronously {
-            DispatchQueue.main.async {
-                switch exportSession.status {
-                case .completed:
-                    completion(.success(outputURL))
-                case .cancelled:
-                    completion(.failure(MediaCompressionError.exportCancelled))
-                default:
-                    completion(.failure(exportSession.error ?? MediaCompressionError.videoExportFailed))
+        
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+        
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
+        layerInstruction.setTransform(videoTrack.preferredTransform, at: .zero)
+        
+        instruction.layerInstructions = [layerInstruction]
+        videoComposition.instructions = [instruction]
+        
+        exportSession.videoComposition = videoComposition
+        
+        // 使用 AVAssetWriter 来精确控制比特率
+        // 由于 AVAssetExportSession 无法直接设置比特率，我们需要使用 AVAssetWriter
+        Task {
+            do {
+                let outputURL = try await compressVideoWithWriter(
+                    asset: asset,
+                    videoTrack: videoTrack,
+                    videoSize: videoSize,
+                    bitrate: bitrate,
+                    outputURL: outputURL,
+                    progressHandler: progressHandler
+                )
+                completion(.success(outputURL))
+            } catch {
+                // 如果 AVAssetWriter 失败，回退到使用 exportSession（虽然可能不会压缩）
+                print("使用 AVAssetWriter 压缩失败，回退到 exportSession: \(error.localizedDescription)")
+                
+                // 设置进度监听
+                let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                    let progress = exportSession.progress
+                    progressHandler(progress)
+                    
+                    if exportSession.status != .exporting {
+                        timer.invalidate()
+                    }
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                
+                // 开始导出
+                exportSession.exportAsynchronously {
+                    DispatchQueue.main.async {
+                        timer.invalidate()
+                        progressHandler(1.0)
+                        
+                        switch exportSession.status {
+                        case .completed:
+                            completion(.success(outputURL))
+                        case .cancelled:
+                            completion(.failure(MediaCompressionError.exportCancelled))
+                        default:
+                            let error = exportSession.error ?? MediaCompressionError.videoExportFailed
+                            print("视频压缩失败: \(error.localizedDescription)")
+                            completion(.failure(error))
+                        }
+                    }
                 }
             }
         }
+        
         return exportSession
     }
     
-    private static func qualityToPreset(_ quality: Double) -> String {
-        switch quality {
-        case 0..<0.4:
-            return AVAssetExportPresetLowQuality
-        case 0.4..<0.7:
-            return AVAssetExportPresetMediumQuality
-        default:
-            return AVAssetExportPresetHighestQuality
+    private static func compressVideoWithWriter(
+        asset: AVAsset,
+        videoTrack: AVAssetTrack,
+        videoSize: CGSize,
+        bitrate: Int,
+        outputURL: URL,
+        progressHandler: @escaping (Float) -> Void
+    ) async throws -> URL {
+        // 删除已存在的文件
+        try? FileManager.default.removeItem(at: outputURL)
+        
+        guard let assetWriter = try? AVAssetWriter(outputURL: outputURL, fileType: .mp4) else {
+            throw MediaCompressionError.videoExportFailed
+        }
+        
+        // 配置视频输出设置
+        let videoOutputSettings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: videoSize.width,
+            AVVideoHeightKey: videoSize.height,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: bitrate,
+                AVVideoMaxKeyFrameIntervalKey: 30,
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC
+            ]
+        ]
+        
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoOutputSettings)
+        videoInput.transform = videoTrack.preferredTransform
+        videoInput.expectsMediaDataInRealTime = false
+        
+        guard assetWriter.canAdd(videoInput) else {
+            throw MediaCompressionError.videoExportFailed
+        }
+        assetWriter.add(videoInput)
+        
+        // 处理音频轨道（如果有）
+        var audioInput: AVAssetWriterInput?
+        if let audioTrack = asset.tracks(withMediaType: .audio).first {
+            let audioOutputSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: 44100,
+                AVNumberOfChannelsKey: 2,
+                AVEncoderBitRateKey: 128000
+            ]
+            
+            let audioWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioOutputSettings)
+            audioWriterInput.expectsMediaDataInRealTime = false
+            
+            if assetWriter.canAdd(audioWriterInput) {
+                assetWriter.add(audioWriterInput)
+                audioInput = audioWriterInput
+            }
+        }
+        
+        guard assetWriter.startWriting() else {
+            throw assetWriter.error ?? MediaCompressionError.videoExportFailed
+        }
+        
+        assetWriter.startSession(atSourceTime: .zero)
+        
+        // 创建读取器
+        guard let assetReader = try? AVAssetReader(asset: asset) else {
+            throw MediaCompressionError.videoExportFailed
+        }
+        
+        // 配置视频读取器
+        let videoReaderOutput = AVAssetReaderTrackOutput(
+            track: videoTrack,
+            outputSettings: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+        )
+        videoReaderOutput.alwaysCopiesSampleData = false
+        
+        if assetReader.canAdd(videoReaderOutput) {
+            assetReader.add(videoReaderOutput)
+        }
+        
+        // 配置音频读取器
+        var audioReaderOutput: AVAssetReaderTrackOutput?
+        if let audioTrack = asset.tracks(withMediaType: .audio).first,
+           let audioInput = audioInput {
+            let audioOutput = AVAssetReaderTrackOutput(
+                track: audioTrack,
+                outputSettings: [
+                    AVFormatIDKey: kAudioFormatLinearPCM
+                ]
+            )
+            audioOutput.alwaysCopiesSampleData = false
+            
+            if assetReader.canAdd(audioOutput) {
+                assetReader.add(audioOutput)
+                audioReaderOutput = audioOutput
+            }
+        }
+        
+        guard assetReader.startReading() else {
+            throw assetReader.error ?? MediaCompressionError.videoExportFailed
+        }
+        
+        let duration = asset.duration.seconds
+        let videoQueue = DispatchQueue(label: "videoQueue")
+        let audioQueue = DispatchQueue(label: "audioQueue")
+        
+        // 使用 DispatchGroup 来协调视频和音频的处理
+        let group = DispatchGroup()
+        
+        // 处理视频
+        group.enter()
+        videoInput.requestMediaDataWhenReady(on: videoQueue) {
+            while videoInput.isReadyForMoreMediaData {
+                guard let sampleBuffer = videoReaderOutput.copyNextSampleBuffer() else {
+                    videoInput.markAsFinished()
+                    group.leave()
+                    return
+                }
+                
+                let presentationTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                let progress = Float(presentationTime.seconds / duration)
+                DispatchQueue.main.async {
+                    progressHandler(min(progress, 0.95)) // 保留 5% 给音频和完成
+                }
+                
+                if !videoInput.append(sampleBuffer) {
+                    print("视频写入失败: \(assetWriter.error?.localizedDescription ?? "未知错误")")
+                    videoInput.markAsFinished()
+                    group.leave()
+                    return
+                }
+            }
+        }
+        
+        // 处理音频
+        if let audioInput = audioInput, let audioReaderOutput = audioReaderOutput {
+            group.enter()
+            audioInput.requestMediaDataWhenReady(on: audioQueue) {
+                while audioInput.isReadyForMoreMediaData {
+                    guard let sampleBuffer = audioReaderOutput.copyNextSampleBuffer() else {
+                        audioInput.markAsFinished()
+                        group.leave()
+                        return
+                    }
+                    
+                    if !audioInput.append(sampleBuffer) {
+                        print("音频写入失败: \(assetWriter.error?.localizedDescription ?? "未知错误")")
+                        audioInput.markAsFinished()
+                        group.leave()
+                        return
+                    }
+                }
+            }
+        }
+        
+        // 等待所有处理完成
+        group.notify(queue: .main) {
+            assetWriter.finishWriting {
+                DispatchQueue.main.async {
+                    progressHandler(1.0)
+                }
+            }
+        }
+        
+        // 等待写入完成
+        await withCheckedContinuation { continuation in
+            // 使用定时器检查写入状态
+            let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                if assetWriter.status == .completed || assetWriter.status == .failed || assetWriter.status == .cancelled {
+                    timer.invalidate()
+                    continuation.resume()
+                }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+        }
+        
+        if assetWriter.status == .completed {
+            return outputURL
+        } else {
+            throw assetWriter.error ?? MediaCompressionError.videoExportFailed
         }
     }
 }
@@ -196,5 +438,3 @@ extension UIImage {
         }
     }
 }
-
-
