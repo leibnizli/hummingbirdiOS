@@ -315,9 +315,39 @@ struct CompressionView: View {
                     Task { @MainActor in
                         switch result {
                         case .success(let url):
-                            item.compressedVideoURL = url
+                            // 获取压缩后的文件大小
+                            let compressedSize: Int
                             if let data = try? Data(contentsOf: url) {
-                                item.compressedSize = data.count
+                                compressedSize = data.count
+                            } else {
+                                compressedSize = 0
+                            }
+                            
+                            // 智能判断：如果压缩后反而变大，保留原视频
+                            if compressedSize >= item.originalSize {
+                                print("⚠️ [视频压缩判断] 压缩后大小 (\(compressedSize) bytes) >= 原视频 (\(item.originalSize) bytes)，保留原视频")
+                                
+                                // 使用原视频
+                                item.compressedVideoURL = sourceURL
+                                item.compressedSize = item.originalSize
+                                item.compressedResolution = item.originalResolution
+                                
+                                // 清理压缩后的临时文件
+                                try? FileManager.default.removeItem(at: url)
+                            } else {
+                                print("✅ [视频压缩判断] 压缩成功，从 \(item.originalSize) bytes 减少到 \(compressedSize) bytes")
+                                
+                                // 使用压缩后的视频
+                                item.compressedVideoURL = url
+                                item.compressedSize = compressedSize
+                                
+                                let asset = AVURLAsset(url: url)
+                                if let videoTrack = asset.tracks(withMediaType: .video).first {
+                                    let size = videoTrack.naturalSize
+                                    let transform = videoTrack.preferredTransform
+                                    let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
+                                    item.compressedResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
+                                }
                             }
                             
                             // 使用原始分辨率计算比特率（从 item.originalResolution）
@@ -327,13 +357,6 @@ struct CompressionView: View {
                                 print("✅ 设置比特率: \(item.usedBitrate ?? 0) Mbps (分辨率: \(originalResolution))")
                             }
                             
-                            let asset = AVURLAsset(url: url)
-                            if let videoTrack = asset.tracks(withMediaType: .video).first {
-                                let size = videoTrack.naturalSize
-                                let transform = videoTrack.preferredTransform
-                                let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
-                                item.compressedResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
-                            }
                             item.status = .completed
                             item.progress = 1.0
                         case .failure(let error):
