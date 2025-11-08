@@ -250,10 +250,20 @@ struct CompressionView: View {
             )
             
             await MainActor.run {
-                item.compressedData = compressed
-                item.compressedSize = compressed.count
-                item.outputImageFormat = outputFormat  // 记录输出格式
-                if let image = UIImage(data: compressed) {
+                // 智能判断：如果压缩后反而变大，保留原图
+                if compressed.count >= originalData.count {
+                    print("⚠️ [压缩判断] 压缩后大小 (\(compressed.count) bytes) >= 原图 (\(originalData.count) bytes)，保留原图")
+                    item.compressedData = originalData
+                    item.compressedSize = originalData.count
+                    item.outputImageFormat = item.originalImageFormat  // 保持原格式
+                } else {
+                    print("✅ [压缩判断] 压缩成功，从 \(originalData.count) bytes 减少到 \(compressed.count) bytes")
+                    item.compressedData = compressed
+                    item.compressedSize = compressed.count
+                    item.outputImageFormat = outputFormat  // 使用压缩后的格式
+                }
+                
+                if let image = UIImage(data: item.compressedData!) {
                     item.compressedResolution = image.size
                 }
                 item.status = .completed
