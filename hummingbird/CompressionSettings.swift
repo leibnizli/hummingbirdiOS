@@ -53,7 +53,7 @@ enum BitrateControlMode: String, CaseIterable, Identifiable {
 // MARK: - 压缩设置
 class CompressionSettings: ObservableObject {
     // 图片设置
-    @Published var imageQuality: Double = 0.6
+    @Published var imageQuality: Double = 0.75
     
     // 视频设置（保持原始分辨率，调整比特率）
     @Published var bitrateControlMode: BitrateControlMode = .auto
