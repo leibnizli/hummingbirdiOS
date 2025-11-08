@@ -248,16 +248,13 @@ struct ResolutionView: View {
             return
         }
         
-        // 获取目标尺寸
-        let targetSize = getTargetSize()
-        
-        // 调整图片尺寸
-        if let (width, height) = targetSize {
-            image = resizeImage(image, maxWidth: width, maxHeight: height)
-        }
-        
         // 修正方向
         image = image.fixOrientation()
+        
+        // 获取目标尺寸并进行智能裁剪和缩放
+        if let (width, height) = getTargetSize() {
+            image = resizeAndCropImage(image, targetWidth: width, targetHeight: height)
+        }
         
         // 编码为JPEG（使用 0.9 质量，保持高质量同时避免文件过大）
         guard let resizedData = image.jpegData(compressionQuality: 0.9) else {
@@ -277,26 +274,54 @@ struct ResolutionView: View {
         }
     }
     
-    private func resizeImage(_ image: UIImage, maxWidth: Int, maxHeight: Int) -> UIImage {
-        let size = image.size
+    // 智能缩放和裁剪图片到目标尺寸
+    private func resizeAndCropImage(_ image: UIImage, targetWidth: Int, targetHeight: Int) -> UIImage {
+        let originalSize = image.size
+        let targetSize = CGSize(width: targetWidth, height: targetHeight)
         
-        var scale: CGFloat = 1.0
-        let widthScale = CGFloat(maxWidth) / size.width
-        let heightScale = CGFloat(maxHeight) / size.height
-        scale = min(widthScale, heightScale)
+        // 计算目标宽高比和原始宽高比
+        let targetAspectRatio = CGFloat(targetWidth) / CGFloat(targetHeight)
+        let originalAspectRatio = originalSize.width / originalSize.height
         
-        if scale >= 1.0 {
-            return image
+        // 计算缩放比例，使用较大的比例以确保填满目标尺寸
+        let scale: CGFloat
+        if originalAspectRatio > targetAspectRatio {
+            // 原图更宽，以高度为准缩放
+            scale = targetSize.height / originalSize.height
+        } else {
+            // 原图更高或相同，以宽度为准缩放
+            scale = targetSize.width / originalSize.width
         }
         
-        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        // 缩放后的尺寸
+        let scaledSize = CGSize(
+            width: originalSize.width * scale,
+            height: originalSize.height * scale
+        )
         
+        // 计算裁剪区域（居中裁剪）
+        let cropRect = CGRect(
+            x: (scaledSize.width - targetSize.width) / 2,
+            y: (scaledSize.height - targetSize.height) / 2,
+            width: targetSize.width,
+            height: targetSize.height
+        )
+        
+        // 创建渲染器
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1.0
+        format.opaque = false
         
-        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        // 先缩放到合适大小
+        let scaledRenderer = UIGraphicsImageRenderer(size: scaledSize, format: format)
+        let scaledImage = scaledRenderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: scaledSize))
+        }
+        
+        // 然后裁剪到目标尺寸
+        let cropRenderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        return cropRenderer.image { _ in
+            scaledImage.draw(at: CGPoint(x: -cropRect.origin.x, y: -cropRect.origin.y))
         }
     }
     
@@ -367,12 +392,14 @@ struct ResolutionView: View {
         }
     }
     
+    // 创建视频合成，实现智能缩放和裁剪
     private func createVideoComposition(asset: AVAsset, targetSize: CGSize) -> AVMutableVideoComposition {
         guard let videoTrack = asset.tracks(withMediaType: .video).first else {
             return AVMutableVideoComposition()
         }
         
         let composition = AVMutableVideoComposition()
+        composition.renderSize = targetSize
         composition.frameDuration = CMTime(value: 1, timescale: 30)
         
         let instruction = AVMutableVideoCompositionInstruction()
@@ -380,21 +407,49 @@ struct ResolutionView: View {
         
         let transformer = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
         
+        // 获取视频原始尺寸和方向
         let videoSize = videoTrack.naturalSize
         let transform = videoTrack.preferredTransform
         let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
         let actualSize = isPortrait ? CGSize(width: videoSize.height, height: videoSize.width) : videoSize
         
-        let scaleX = targetSize.width / actualSize.width
-        let scaleY = targetSize.height / actualSize.height
-        let scale = min(scaleX, scaleY)
+        // 计算宽高比
+        let targetAspectRatio = targetSize.width / targetSize.height
+        let videoAspectRatio = actualSize.width / actualSize.height
         
+        // 使用较大的缩放比例以填满目标尺寸（会裁剪超出部分）
+        let scale: CGFloat
+        if videoAspectRatio > targetAspectRatio {
+            // 视频更宽，以高度为准
+            scale = targetSize.height / actualSize.height
+        } else {
+            // 视频更高，以宽度为准
+            scale = targetSize.width / actualSize.width
+        }
+        
+        // 计算缩放后的尺寸
         let scaledSize = CGSize(width: actualSize.width * scale, height: actualSize.height * scale)
-        composition.renderSize = scaledSize
         
+        // 计算居中偏移
+        let tx = (targetSize.width - scaledSize.width) / 2
+        let ty = (targetSize.height - scaledSize.height) / 2
+        
+        // 构建变换矩阵
         var finalTransform = CGAffineTransform.identity
-        finalTransform = finalTransform.scaledBy(x: scale, y: scale)
+        
+        // 先应用原始的旋转/翻转变换
         finalTransform = finalTransform.concatenating(transform)
+        
+        // 然后缩放
+        finalTransform = finalTransform.scaledBy(x: scale, y: scale)
+        
+        // 最后平移到居中位置
+        if isPortrait {
+            // 竖屏视频需要特殊处理偏移
+            finalTransform = finalTransform.translatedBy(x: ty, y: tx)
+        } else {
+            finalTransform = finalTransform.translatedBy(x: tx, y: ty)
+        }
         
         transformer.setTransform(finalTransform, at: .zero)
         instruction.layerInstructions = [transformer]

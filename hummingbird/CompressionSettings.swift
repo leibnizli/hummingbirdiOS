@@ -11,36 +11,32 @@ import Combine
 
 // MARK: - 图片分辨率
 enum ImageResolution: String, CaseIterable, Identifiable {
-    case original = "原始分辨率"
     case wallpaper4K = "4K 壁纸 (3840×2160)"
     case wallpaper2K = "2K 壁纸 (2560×1440)"
-    case wallpaperHD = "高清壁纸 (1920×1080)"
-    case phoneWallpaper = "手机壁纸 (1080×1920)"
     case phoneWallpaperMax = "手机壁纸大 (1242×2688)"
+    case phoneWallpaper = "手机壁纸 (1080×1920)"
+    case wallpaperHD = "高清壁纸 (1920×1080)"
     case bannerLarge = "网站横幅大 (1920×600)"
+    case socialVertical = "社交竖图 (1080×1350)"
     case bannerMedium = "网站横幅中 (1200×400)"
     case socialSquare = "社交方图 (1080×1080)"
-    case socialVertical = "社交竖图 (1080×1350)"
     case videoCover720p = "视频封面 720p (1280×720)"
-    case videoCover1080p = "视频封面 1080p (1920×1080)"
     case custom = "自定义"
     
     var id: String { rawValue }
     
     var size: (width: Int, height: Int)? {
         switch self {
-        case .original: return nil
         case .wallpaper4K: return (3840, 2160)
         case .wallpaper2K: return (2560, 1440)
-        case .wallpaperHD: return (1920, 1080)
-        case .phoneWallpaper: return (1080, 1920)
         case .phoneWallpaperMax: return (1242, 2688)
+        case .phoneWallpaper: return (1080, 1920)
+        case .wallpaperHD: return (1920, 1080)
         case .bannerLarge: return (1920, 600)
+        case .socialVertical: return (1080, 1350)
         case .bannerMedium: return (1200, 400)
         case .socialSquare: return (1080, 1080)
-        case .socialVertical: return (1080, 1350)
         case .videoCover720p: return (1280, 720)
-        case .videoCover1080p: return (1920, 1080)
         case .custom: return nil
         }
     }
@@ -99,7 +95,6 @@ class CompressionSettings: ObservableObject {
 
 // MARK: - 视频分辨率
 enum VideoResolution: String, CaseIterable, Identifiable {
-    case original = "原始分辨率"
     case uhd4k = "4K (3840×2160)"
     case fullHD = "1080p (1920×1080)"
     case hd = "720p (1280×720)"
@@ -110,7 +105,6 @@ enum VideoResolution: String, CaseIterable, Identifiable {
     
     var size: CGSize? {
         switch self {
-        case .original: return nil
         case .uhd4k: return CGSize(width: 3840, height: 2160)
         case .fullHD: return CGSize(width: 1920, height: 1080)
         case .hd: return CGSize(width: 1280, height: 720)
