@@ -181,8 +181,19 @@ struct MediaItemRow: View {
                 try await PHPhotoLibrary.shared().performChanges {
                     if item.isVideo, let url = item.compressedVideoURL {
                         PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
-                    } else if let data = item.compressedData, let image = UIImage(data: data) {
-                        PHAssetChangeRequest.creationRequestForAsset(from: image)
+                    } else if let data = item.compressedData {
+                        // 将压缩后的数据写入临时文件
+                        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                            .appendingPathComponent("compressed_\(UUID().uuidString).jpg")
+                        try? data.write(to: tempURL)
+                        
+                        // 使用文件 URL 保存，保持原始压缩数据
+                        let request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: tempURL)
+                        
+                        // 清理临时文件（延迟执行，确保保存完成）
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            try? FileManager.default.removeItem(at: tempURL)
+                        }
                     }
                 }
                 await MainActor.run {
