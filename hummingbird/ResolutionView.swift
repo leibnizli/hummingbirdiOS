@@ -88,14 +88,19 @@ struct ResolutionView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(mediaItems) { item in
-                                ResolutionItemRow(item: item)
+                    List {
+                        ForEach(mediaItems) { item in
+                            ResolutionItemRow(item: item)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowSeparator(.hidden)
+                        }
+                        .onDelete { indexSet in
+                            withAnimation {
+                                mediaItems.remove(atOffsets: indexSet)
                             }
                         }
-                        .padding()
                     }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("修改分辨率")

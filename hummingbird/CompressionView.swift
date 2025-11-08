@@ -53,14 +53,19 @@ struct CompressionView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(mediaItems) { item in
-                                CompressionItemRow(item: item)
+                    List {
+                        ForEach(mediaItems) { item in
+                            CompressionItemRow(item: item)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowSeparator(.hidden)
+                        }
+                        .onDelete { indexSet in
+                            withAnimation {
+                                mediaItems.remove(atOffsets: indexSet)
                             }
                         }
-                        .padding()
                     }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("媒体压缩")
