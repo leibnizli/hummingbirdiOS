@@ -16,14 +16,17 @@ struct SettingsView: View {
             Form {
                 Section {
                     Toggle("优先使用 HEIC", isOn: $settings.preferHEIC)
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("HEIC 质量")
-                            Spacer()
-                            Text("\(Int(settings.heicQuality * 100))%")
-                                .foregroundStyle(.secondary)
+                    
+                    if settings.preferHEIC {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("HEIC 质量")
+                                Spacer()
+                                Text("\(Int(settings.heicQuality * 100))%")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Slider(value: $settings.heicQuality, in: 0.1...1.0, step: 0.05)
                         }
-                        Slider(value: $settings.heicQuality, in: 0.1...1.0, step: 0.05)
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
