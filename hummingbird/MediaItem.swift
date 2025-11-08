@@ -11,6 +11,7 @@ import PhotosUI
 import Combine
 
 enum CompressionStatus {
+    case loading      // 加载中
     case pending      // 等待处理
     case compressing  // 压缩中
     case processing   // 处理中（用于分辨率调整）
@@ -41,6 +42,9 @@ class MediaItem: Identifiable, ObservableObject {
     // 视频压缩使用的比特率（Mbps，仅视频有效）
     @Published var usedBitrate: Double?
     
+    // 视频时长（秒，仅视频有效）
+    @Published var duration: Double?
+    
     // 原始图片格式（从 PhotosPickerItem 检测）
     var originalImageFormat: ImageFormat?
     
@@ -57,6 +61,7 @@ class MediaItem: Identifiable, ObservableObject {
     init(pickerItem: PhotosPickerItem, isVideo: Bool) {
         self.pickerItem = pickerItem
         self.isVideo = isVideo
+        self.status = .loading  // 初始状态为加载中
     }
     
     // 计算压缩率（减少的百分比）
@@ -81,5 +86,51 @@ class MediaItem: Identifiable, ObservableObject {
     func formatResolution(_ size: CGSize?) -> String {
         guard let size = size else { return "未知" }
         return "\(Int(size.width))×\(Int(size.height))"
+    }
+    
+    // 格式化时长
+    func formatDuration(_ duration: Double?) -> String {
+        guard let duration = duration, duration > 0 else { return "未知" }
+        
+        let hours = Int(duration) / 3600
+        let minutes = Int(duration) % 3600 / 60
+        let seconds = Int(duration) % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+    
+    // 延迟加载视频数据（仅在需要时加载）
+    func loadVideoDataIfNeeded() async -> Data? {
+        if let existingData = originalData {
+            return existingData
+        }
+        
+        guard isVideo, let sourceURL = sourceVideoURL else {
+            return nil
+        }
+        
+        // 如果是临时文件，直接读取
+        if sourceURL.path.contains(NSTemporaryDirectory()) {
+            return try? Data(contentsOf: sourceURL)
+        }
+        
+        // 如果是 PhotosPickerItem，重新加载
+        do {
+            let data = try await pickerItem.loadTransferable(type: Data.self)
+            await MainActor.run {
+                self.originalData = data
+                if let data = data {
+                    self.originalSize = data.count
+                }
+            }
+            return data
+        } catch {
+            print("延迟加载视频数据失败: \(error)")
+            return nil
+        }
     }
 }

@@ -72,6 +72,13 @@ struct ResolutionItemRow: View {
                             Text("大小: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            
+                            // 显示视频时长（仅视频）
+                            if item.isVideo {
+                                Text("时长: \(item.formatDuration(item.duration))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 2) {
@@ -83,6 +90,12 @@ struct ResolutionItemRow: View {
                             Text("大小: \(item.formatBytes(item.originalSize))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            // 显示视频时长（仅视频）
+                            if item.isVideo {
+                                Text("时长: \(item.formatDuration(item.duration))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     
@@ -119,6 +132,15 @@ struct ResolutionItemRow: View {
     @ViewBuilder
     private var statusBadge: some View {
         switch item.status {
+        case .loading:
+            HStack(spacing: 3) {
+                ProgressView()
+                    .scaleEffect(0.7)
+                Text("加载中")
+            }
+            .font(.caption)
+            .foregroundStyle(.blue)
+            .lineLimit(1)
         case .pending:
             HStack(spacing: 3) {
                 Image(systemName: "clock")

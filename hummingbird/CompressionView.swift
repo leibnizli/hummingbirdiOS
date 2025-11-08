@@ -99,93 +99,158 @@ struct CompressionView: View {
             let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) })
             let mediaItem = MediaItem(pickerItem: item, isVideo: isVideo)
             
+            // 先添加到列表，显示加载状态
+            await MainActor.run {
+                mediaItems.append(mediaItem)
+            }
+            
+            if isVideo {
+                // 视频优化：延迟加载，只在需要时加载完整数据
+                await loadVideoItemOptimized(item, mediaItem)
+            } else {
+                // 图片：正常加载
+                await loadImageItem(item, mediaItem)
+            }
+        }
+    }
+    
+    private func loadImageItem(_ item: PhotosPickerItem, _ mediaItem: MediaItem) async {
+        if let data = try? await item.loadTransferable(type: Data.self) {
+            await MainActor.run {
+                mediaItem.originalData = data
+                mediaItem.originalSize = data.count
+                
+                // 检测原始图片格式
+                let isPNG = item.supportedContentTypes.contains { contentType in
+                    contentType.identifier == "public.png" ||
+                    contentType.conforms(to: .png)
+                }
+                let isHEIC = item.supportedContentTypes.contains { contentType in
+                    contentType.identifier == "public.heic" || 
+                    contentType.identifier == "public.heif" ||
+                    contentType.conforms(to: .heic) ||
+                    contentType.conforms(to: .heif)
+                }
+                let isWebP = item.supportedContentTypes.contains { contentType in
+                    contentType.identifier == "org.webmproject.webp" ||
+                    contentType.preferredMIMEType == "image/webp"
+                }
+                
+                if isPNG {
+                    mediaItem.originalImageFormat = .png
+                    mediaItem.fileExtension = "png"
+                } else if isHEIC {
+                    mediaItem.originalImageFormat = .heic
+                    mediaItem.fileExtension = "heic"
+                } else if isWebP {
+                    mediaItem.originalImageFormat = .webp
+                    mediaItem.fileExtension = "webp"
+                } else {
+                    mediaItem.originalImageFormat = .jpeg
+                    mediaItem.fileExtension = "jpg"
+                }
+                
+                if let image = UIImage(data: data) {
+                    mediaItem.thumbnailImage = generateThumbnail(from: image)
+                    mediaItem.originalResolution = image.size
+                }
+                
+                // 加载完成，设置为等待状态
+                mediaItem.status = .pending
+            }
+        }
+    }
+    
+    private func loadVideoItemOptimized(_ item: PhotosPickerItem, _ mediaItem: MediaItem) async {
+        // 检测视频格式
+        let isMOV = item.supportedContentTypes.contains { contentType in
+            contentType.identifier == "com.apple.quicktime-movie" ||
+            contentType.conforms(to: .quickTimeMovie)
+        }
+        let isMP4 = item.supportedContentTypes.contains { contentType in
+            contentType.identifier == "public.mpeg-4" ||
+            contentType.conforms(to: .mpeg4Movie)
+        }
+        
+        await MainActor.run {
+            if isMOV {
+                mediaItem.fileExtension = "mov"
+            } else if isMP4 {
+                mediaItem.fileExtension = "mp4"
+            } else {
+                mediaItem.fileExtension = "video"
+            }
+        }
+        
+        // 优化：使用 URL 方式加载视频，避免将整个文件加载到内存
+        if let url = try? await item.loadTransferable(type: URL.self) {
+            await MainActor.run {
+                mediaItem.sourceVideoURL = url
+                
+                // 快速获取文件大小（不加载整个文件）
+                if let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int {
+                    mediaItem.originalSize = fileSize
+                }
+                
+                // 异步获取视频信息和缩略图
+                Task {
+                    await loadVideoMetadata(for: mediaItem, url: url)
+                }
+            }
+        } else {
+            // 回退到数据加载方式（兼容性）
             if let data = try? await item.loadTransferable(type: Data.self) {
                 await MainActor.run {
                     mediaItem.originalData = data
                     mediaItem.originalSize = data.count
                     
-                    // 检测原始图片格式（从 PhotosPickerItem 的 contentType 检测）
-                    if !isVideo {
-                        let isPNG = item.supportedContentTypes.contains { contentType in
-                            contentType.identifier == "public.png" ||
-                            contentType.conforms(to: .png)
-                        }
-                        let isHEIC = item.supportedContentTypes.contains { contentType in
-                            contentType.identifier == "public.heic" || 
-                            contentType.identifier == "public.heif" ||
-                            contentType.conforms(to: .heic) ||
-                            contentType.conforms(to: .heif)
-                        }
-                        let isWebP = item.supportedContentTypes.contains { contentType in
-                            contentType.identifier == "org.webmproject.webp" ||
-                            contentType.preferredMIMEType == "image/webp"
-                        }
-                        
-                        if isPNG {
-                            mediaItem.originalImageFormat = .png
-                            mediaItem.fileExtension = "png"
-                            print("📋 [格式检测] PhotosPickerItem 格式: PNG")
-                        } else if isHEIC {
-                            mediaItem.originalImageFormat = .heic
-                            mediaItem.fileExtension = "heic"
-                            print("📋 [格式检测] PhotosPickerItem 格式: HEIC")
-                        } else if isWebP {
-                            mediaItem.originalImageFormat = .webp
-                            mediaItem.fileExtension = "webp"
-                            print("📋 [格式检测] PhotosPickerItem 格式: WebP")
-                        } else {
-                            mediaItem.originalImageFormat = .jpeg
-                            mediaItem.fileExtension = "jpg"
-                            print("📋 [格式检测] PhotosPickerItem 格式: JPEG")
-                        }
-                    }
+                    let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                        .appendingPathComponent("source_\(mediaItem.id.uuidString)")
+                        .appendingPathExtension("mov")
+                    try? data.write(to: tempURL)
+                    mediaItem.sourceVideoURL = tempURL
                     
-                    if isVideo {
-                        // 检测视频格式
-                        let isMOV = item.supportedContentTypes.contains { contentType in
-                            contentType.identifier == "com.apple.quicktime-movie" ||
-                            contentType.conforms(to: .quickTimeMovie)
-                        }
-                        let isMP4 = item.supportedContentTypes.contains { contentType in
-                            contentType.identifier == "public.mpeg-4" ||
-                            contentType.conforms(to: .mpeg4Movie)
-                        }
-                        
-                        if isMOV {
-                            mediaItem.fileExtension = "mov"
-                        } else if isMP4 {
-                            mediaItem.fileExtension = "mp4"
-                        } else {
-                            mediaItem.fileExtension = "video"
-                        }
-                        
-                        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                            .appendingPathComponent("source_\(mediaItem.id.uuidString)")
-                            .appendingPathExtension("mov")
-                        try? data.write(to: tempURL)
-                        mediaItem.sourceVideoURL = tempURL
-                        
-                        let asset = AVURLAsset(url: tempURL)
-                        if let videoTrack = asset.tracks(withMediaType: .video).first {
-                            let size = videoTrack.naturalSize
-                            let transform = videoTrack.preferredTransform
-                            let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
-                            mediaItem.originalResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
-                        }
-                        
-                        generateVideoThumbnail(for: mediaItem, url: tempURL)
-                    } else {
-                        if let image = UIImage(data: data) {
-                            mediaItem.thumbnailImage = generateThumbnail(from: image)
-                            mediaItem.originalResolution = image.size
-                        }
+                    Task {
+                        await loadVideoMetadata(for: mediaItem, url: tempURL)
                     }
                 }
             }
+        }
+    }
+    
+    private func loadVideoMetadata(for mediaItem: MediaItem, url: URL) async {
+        let asset = AVURLAsset(url: url)
+        
+        // 异步加载视频轨道信息和时长
+        do {
+            let tracks = try await asset.loadTracks(withMediaType: .video)
+            if let videoTrack = tracks.first {
+                let size = try await videoTrack.load(.naturalSize)
+                let transform = try await videoTrack.load(.preferredTransform)
+                let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
+                
+                await MainActor.run {
+                    mediaItem.originalResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
+                }
+            }
+            
+            // 加载视频时长
+            let duration = try await asset.load(.duration)
+            let durationSeconds = CMTimeGetSeconds(duration)
             
             await MainActor.run {
-                mediaItems.append(mediaItem)
+                mediaItem.duration = durationSeconds
             }
+        } catch {
+            print("加载视频轨道信息失败: \(error)")
+        }
+        
+        // 异步生成缩略图
+        await generateVideoThumbnailOptimized(for: mediaItem, url: url)
+        
+        // 视频元数据加载完成，设置为等待状态
+        await MainActor.run {
+            mediaItem.status = .pending
         }
     }
     
@@ -206,21 +271,27 @@ struct CompressionView: View {
         }
     }
     
-    private func generateVideoThumbnail(for item: MediaItem, url: URL) {
+    private func generateVideoThumbnailOptimized(for item: MediaItem, url: URL) async {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 160, height: 160)
         
-        Task {
-            do {
-                let cgImage = try await generator.image(at: .zero).image
-                let thumbnail = UIImage(cgImage: cgImage)
-                await MainActor.run {
-                    item.thumbnailImage = thumbnail
-                }
-            } catch {
-                print("生成视频缩略图失败: \(error)")
+        // 优化：设置更快的缩略图生成选项
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 1, preferredTimescale: 600)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 1, preferredTimescale: 600)
+        
+        do {
+            let cgImage = try await generator.image(at: CMTime(seconds: 1, preferredTimescale: 600)).image
+            let thumbnail = UIImage(cgImage: cgImage)
+            await MainActor.run {
+                item.thumbnailImage = thumbnail
+            }
+        } catch {
+            print("生成视频缩略图失败: \(error)")
+            // 设置默认视频图标
+            await MainActor.run {
+                item.thumbnailImage = UIImage(systemName: "video.fill")
             }
         }
     }
@@ -355,12 +426,18 @@ struct CompressionView: View {
     }
     
     private func compressVideo(_ item: MediaItem) async {
+        // 确保有视频 URL
         guard let sourceURL = item.sourceVideoURL else {
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "无法加载原始视频"
             }
             return
+        }
+        
+        // 如果需要完整数据但还没有加载，现在加载
+        if item.originalData == nil {
+            await item.loadVideoDataIfNeeded()
         }
         
         await withCheckedContinuation { continuation in

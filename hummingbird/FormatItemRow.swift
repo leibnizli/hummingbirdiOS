@@ -72,26 +72,42 @@ struct FormatItemRow: View {
                     
                     // 大小信息
                     if item.status == .completed {
-                        HStack(spacing: 4) {
-                            Text("大小: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            
-                            let diff = item.compressedSize - item.originalSize
-                            if diff > 0 {
-                                Text("(+\(item.formatBytes(diff)))")
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 4) {
+                                Text("大小: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")
                                     .font(.caption)
-                                    .foregroundStyle(.orange)
-                            } else if diff < 0 {
-                                Text("(\(item.formatBytes(diff)))")
+                                    .foregroundStyle(.secondary)
+                                
+                                let diff = item.compressedSize - item.originalSize
+                                if diff > 0 {
+                                    Text("(+\(item.formatBytes(diff)))")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                } else if diff < 0 {
+                                    Text("(\(item.formatBytes(diff)))")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                }
+                            }
+                            // 显示视频时长（仅视频）
+                            if item.isVideo {
+                                Text("时长: \(item.formatDuration(item.duration))")
                                     .font(.caption)
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     } else {
-                        Text("大小: \(item.formatBytes(item.originalSize))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("大小: \(item.formatBytes(item.originalSize))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            // 显示视频时长（仅视频）
+                            if item.isVideo {
+                                Text("时长: \(item.formatDuration(item.duration))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                     
                     // 状态信息
@@ -118,6 +134,15 @@ struct FormatItemRow: View {
     @ViewBuilder
     private var statusView: some View {
         switch item.status {
+        case .loading:
+            HStack(spacing: 6) {
+                ProgressView()
+                    .scaleEffect(0.7)
+                Text("加载中")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+            }
+            
         case .pending:
             Text("等待转换")
                 .font(.caption)
