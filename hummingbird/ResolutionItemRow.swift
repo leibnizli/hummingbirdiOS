@@ -135,30 +135,45 @@ struct ResolutionItemRow: View {
     private var statusBadge: some View {
         switch item.status {
         case .pending:
-            Label("等待中", systemImage: "clock")
-                .font(.caption)
-                .foregroundStyle(.orange)
-                .fixedSize()
+            HStack(spacing: 3) {
+                Image(systemName: "clock")
+                Text("等待中")
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .lineLimit(1)
         case .compressing:
-            Label("压缩中", systemImage: "arrow.triangle.2.circlepath")
-                .font(.caption)
-                .foregroundStyle(.blue)
-                .fixedSize()
+            HStack(spacing: 3) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                Text("压缩中")
+            }
+            .font(.caption)
+            .foregroundStyle(.blue)
+            .lineLimit(1)
         case .processing:
-            Label("处理中", systemImage: "arrow.triangle.2.circlepath")
-                .font(.caption)
-                .foregroundStyle(.blue)
-                .fixedSize()
+            HStack(spacing: 3) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                Text("处理中")
+            }
+            .font(.caption)
+            .foregroundStyle(.blue)
+            .lineLimit(1)
         case .completed:
-            Label("完成", systemImage: "checkmark.circle.fill")
-                .font(.caption)
-                .foregroundStyle(.green)
-                .fixedSize()
+            HStack(spacing: 3) {
+                Image(systemName: "checkmark.circle.fill")
+                Text("完成")
+            }
+            .font(.caption)
+            .foregroundStyle(.green)
+            .lineLimit(1)
         case .failed:
-            Label("失败", systemImage: "xmark.circle.fill")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .fixedSize()
+            HStack(spacing: 3) {
+                Image(systemName: "xmark.circle.fill")
+                Text("失败")
+            }
+            .font(.caption)
+            .foregroundStyle(.red)
+            .lineLimit(1)
         }
     }
     
