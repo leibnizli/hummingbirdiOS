@@ -309,10 +309,16 @@ struct CompressionView: View {
                 item.progress = 0.5
             }
             
-            let compressed = try MediaCompressor.compressImage(
+            let compressed = try await MediaCompressor.compressImage(
                 originalData,
                 settings: settings,
-                preferredFormat: outputFormat
+                preferredFormat: outputFormat,
+                progressHandler: { progress in
+                    Task { @MainActor in
+                        // 将压缩进度映射到 0.5-0.9 范围
+                        item.progress = 0.5 + (progress * 0.4)
+                    }
+                }
             )
             
             // 更新进度：压缩完成，处理结果

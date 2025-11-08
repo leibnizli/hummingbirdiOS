@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		7AA00648FEEB8B9B28529BE0 /* Pods_hummingbird.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 557D59E54308138129E6A581 /* Pods_hummingbird.framework */; };
-		8488C4102EBF3DDA00BC443A /* pngquant in Frameworks */ = {isa = PBXBuildFile; productRef = 8488C40F2EBF3DDA00BC443A /* pngquant */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,7 +30,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8488C4102EBF3DDA00BC443A /* pngquant in Frameworks */,
 				7AA00648FEEB8B9B28529BE0 /* Pods_hummingbird.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -125,7 +123,6 @@
 			mainGroup = 84E0DCAB2EBA3266006AD34D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				8488C40E2EBF3DDA00BC443A /* XCRemoteSwiftPackageReference "pngquant" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84E0DCB52EBA3266006AD34D /* Products */;
@@ -432,25 +429,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		8488C40E2EBF3DDA00BC443A /* XCRemoteSwiftPackageReference "pngquant" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/awxkee/pngquant.swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.5;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		8488C40F2EBF3DDA00BC443A /* pngquant */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 8488C40E2EBF3DDA00BC443A /* XCRemoteSwiftPackageReference "pngquant" */;
-			productName = pngquant;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 84E0DCAC2EBA3266006AD34D /* Project object */;
 }

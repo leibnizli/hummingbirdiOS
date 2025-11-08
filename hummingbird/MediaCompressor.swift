@@ -2,7 +2,6 @@ import Foundation
 import UIKit
 import AVFoundation
 import Combine
-import pngquant
 import SDWebImageWebPCoder
 
 enum MediaCompressionError: Error {
@@ -19,13 +18,22 @@ enum ImageFormat {
 }
 
 final class MediaCompressor {
-    static func compressImage(_ data: Data, settings: CompressionSettings, preferredFormat: ImageFormat? = nil) throws -> Data {
+    static func compressImage(
+        _ data: Data,
+        settings: CompressionSettings,
+        preferredFormat: ImageFormat? = nil,
+        progressHandler: ((Float) -> Void)? = nil
+    ) async throws -> Data {
         guard var image = UIImage(data: data) else { throw MediaCompressionError.imageDecodeFailed }
+        
+        progressHandler?(0.1)
         
         // 修正图片方向，防止压缩后旋转
         image = image.fixOrientation()
         print("原始图片尺寸 - width:\(image.size.width), height:\(image.size.height)")
 
+        progressHandler?(0.15)
+        
         // 检测原始图片格式，保持原有格式
         // 如果提供了 preferredFormat，优先使用它；否则从数据检测
         let format: ImageFormat
@@ -35,6 +43,8 @@ final class MediaCompressor {
         } else {
             format = detectImageFormat(data: data)
         }
+        
+        progressHandler?(0.2)
         
         // 根据格式选择对应的质量设置
         let quality: CGFloat
@@ -49,7 +59,7 @@ final class MediaCompressor {
             quality = 0.0  // PNG 不使用质量参数
         }
         
-        return encode(image: image, quality: quality, format: format)
+        return await encode(image: image, quality: quality, format: format, progressHandler: progressHandler)
     }
     
     static func detectImageFormat(data: Data) -> ImageFormat {
@@ -103,9 +113,10 @@ final class MediaCompressor {
         return .jpeg
     }
 
-    static func encode(image: UIImage, quality: CGFloat, format: ImageFormat) -> Data {
+    static func encode(image: UIImage, quality: CGFloat, format: ImageFormat, progressHandler: ((Float) -> Void)? = nil) async -> Data {
         switch format {
         case .webp:
+            progressHandler?(0.3)
             // WebP 压缩 - 使用 SDWebImageWebPCoder
             print("🔄 [WebP] 开始 WebP 压缩 - 质量: \(quality)")
             
@@ -114,60 +125,64 @@ final class MediaCompressor {
             
             // 使用 SDWebImageWebPCoder 编码
             if let webpData = webpCoder.encodedData(with: image, format: .webP, options: [.encodeCompressionQuality: normalizedQuality]) {
+                progressHandler?(1.0)
                 print("✅ [WebP] 压缩成功 - 质量: \(normalizedQuality), 大小: \(webpData.count) bytes")
                 return webpData
             } else {
                 print("⚠️ [WebP] SDWebImageWebPCoder 编码失败，回退到 JPEG")
                 // WebP 编码失败，回退到 JPEG
                 if let jpegData = image.jpegData(compressionQuality: normalizedQuality) {
+                    progressHandler?(1.0)
                     print("✅ [WebP->JPEG 回退] 压缩成功 - 大小: \(jpegData.count) bytes")
                     return jpegData
                 }
+                progressHandler?(1.0)
                 return Data()
             }
             
         case .png:
-            // PNG 使用 pngquant 压缩
-            print("🔄 [PNG] 使用 PNGQuant 压缩")
+            // PNG 使用自定义压缩器
+            print("🔄 [PNG] 使用颜色量化压缩")
+            progressHandler?(0.3)
             
-            // 先获取原始 PNG 数据用于对比
-            let originalPNGData = image.pngData()
-            let originalSize = originalPNGData?.count ?? 0
-            
-            do {
-                // 使用 pngquant 的 UIImage 扩展方法直接压缩
-                let compressedData = try image.pngQuantData()
-                let compressedSize = compressedData.count
-                let compressionRatio = originalSize > 0 ? Double(compressedSize) / Double(originalSize) : 0.0
-                
-                print("✅ [PNGQuant] 压缩成功, 原始大小: \(originalSize) bytes, 压缩后: \(compressedSize) bytes, 压缩比: \(String(format: "%.2f%%", compressionRatio * 100))")
-                
+            if let compressedData = await PNGCompressor.compress(image: image, progressHandler: { progress in
+                // 将 PNG 压缩器的进度映射到 0.3-1.0 范围
+                let mappedProgress = 0.3 + (progress * 0.7)
+                progressHandler?(mappedProgress)
+            }) {
+                print("✅ [PNG] 压缩成功 - 大小: \(compressedData.count) bytes")
                 return compressedData
-            } catch {
-                print("⚠️ [PNGQuant] 压缩失败: \(error.localizedDescription)，使用原始 PNG")
-                return originalPNGData ?? Data()
+            } else {
+                print("⚠️ [PNG] 压缩失败，使用原始 PNG")
+                progressHandler?(1.0)
+                return image.pngData() ?? Data()
             }
             
         case .jpeg:
+            progressHandler?(0.3)
             // 使用 MozJPEG 压缩
             let normalizedQuality = max(0.01, min(1.0, quality))
             if let mozjpegData = MozJPEGEncoder.encode(image, quality: normalizedQuality) {
                 let originalSize = image.jpegData(compressionQuality: normalizedQuality)?.count ?? 0
                 let compressedSize = mozjpegData.count
                 let compressionRatio = originalSize > 0 ? Double(compressedSize) / Double(originalSize) : 0.0
+                progressHandler?(1.0)
                 print("✅ [MozJPEG] 压缩成功 - 质量: \(normalizedQuality), 原始大小: \(originalSize) bytes, 压缩后: \(compressedSize) bytes, 压缩比: \(String(format: "%.2f%%", compressionRatio * 100))")
                 return mozjpegData
             }
             // 如果 MozJPEG 失败，回退到系统默认
             print("⚠️ [MozJPEG] 压缩失败，回退到系统默认 JPEG 压缩 - 质量: \(normalizedQuality)")
             if let systemData = image.jpegData(compressionQuality: normalizedQuality) {
+                progressHandler?(1.0)
                 print("✅ [系统默认] JPEG 压缩成功 - 大小: \(systemData.count) bytes")
                 return systemData
             } else {
+                progressHandler?(1.0)
                 print("❌ [系统默认] JPEG 压缩失败")
                 return Data()
             }
         case .heic:
+            progressHandler?(0.3)
             if #available(iOS 11.0, *) {
                 print("🔄 [HEIC] 开始 HEIC 压缩 - 质量: \(quality)")
                 let mutableData = NSMutableData()
@@ -188,13 +203,16 @@ final class MediaCompressor {
                 let success = CGImageDestinationFinalize(imageDestination)
                 if success {
                     let heicData = mutableData as Data
+                    progressHandler?(1.0)
                     print("✅ [HEIC] 压缩成功 - 大小: \(heicData.count) bytes")
                     return heicData
                 } else {
+                    progressHandler?(1.0)
                     print("❌ [HEIC] 错误: CGImageDestinationFinalize 失败")
                     return Data()
                 }
             } else {
+                progressHandler?(1.0)
                 print("⚠️ [HEIC] iOS 版本低于 11.0，不支持 HEIC")
                 return Data()
             }
@@ -554,13 +572,22 @@ extension UIImage {
         
         guard let cgImage = cgImage else { return self }
         
+        // 检查图片是否有透明通道
+        let hasAlpha = cgImage.alphaInfo != .none && 
+                       cgImage.alphaInfo != .noneSkipFirst && 
+                       cgImage.alphaInfo != .noneSkipLast
+        
         // 使用 UIGraphicsImageRenderer 重新绘制，自动处理方向
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1.0  // 使用 1.0 保持像素尺寸不变
-        format.opaque = false
+        format.opaque = !hasAlpha  // 根据是否有透明通道设置 opaque
         
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { _ in
+        return renderer.image { context in
+            // 如果有透明通道，确保背景是透明的
+            if hasAlpha {
+                context.cgContext.clear(CGRect(origin: .zero, size: size))
+            }
             draw(in: CGRect(origin: .zero, size: size))
         }
     }
