@@ -11,6 +11,16 @@ import AVFoundation
 import Photos
 import SDWebImageWebPCoder
 
+extension NumberFormatter {
+    static var noGrouping: NumberFormatter {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .none
+        formatter.groupingSeparator = ""
+        formatter.usesGroupingSeparator = false
+        return formatter
+    }
+}
+
 struct ResolutionView: View {
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var mediaItems: [MediaItem] = []
@@ -54,7 +64,7 @@ struct ResolutionView: View {
                         HStack(spacing: 12) {
                             HStack {
                                 Text("宽度")
-                                TextField("1920", value: $customWidth, format: .number)
+                                TextField("1920", value: $customWidth, formatter: NumberFormatter.noGrouping)
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(.roundedBorder)
                                 Text("px")
@@ -63,7 +73,7 @@ struct ResolutionView: View {
                             
                             HStack {
                                 Text("高度")
-                                TextField("1080", value: $customHeight, format: .number)
+                                TextField("1080", value: $customHeight, formatter: NumberFormatter.noGrouping)
                                     .keyboardType(.numberPad)
                                     .textFieldStyle(.roundedBorder)
                                 Text("px")
@@ -72,6 +82,7 @@ struct ResolutionView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color(.systemGray6))
                 

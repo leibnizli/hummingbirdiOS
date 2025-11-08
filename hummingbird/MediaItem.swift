@@ -47,6 +47,9 @@ class MediaItem: Identifiable, ObservableObject {
     // 输出图片格式（压缩后的格式）
     var outputImageFormat: ImageFormat?
     
+    // 输出视频格式（转换后的格式）
+    var outputVideoFormat: String?
+    
     // 临时文件URL（用于视频）
     var sourceVideoURL: URL?
     var compressedVideoURL: URL?

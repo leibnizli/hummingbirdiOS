@@ -10,11 +10,13 @@ enum MediaCompressionError: Error {
     case exportCancelled
 }
 
-enum ImageFormat {
-    case jpeg
-    case heic
-    case png
-    case webp
+enum ImageFormat: String, CaseIterable, Identifiable {
+    case jpeg = "JPEG"
+    case heic = "HEIC"
+    case png = "PNG"
+    case webp = "WebP"
+    
+    var id: String { rawValue }
 }
 
 final class MediaCompressor {

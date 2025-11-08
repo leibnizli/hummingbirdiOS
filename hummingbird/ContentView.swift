@@ -19,6 +19,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("分辨率", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
+            
+            FormatView()
+                .tabItem {
+                    Label("格式", systemImage: "arrow.triangle.2.circlepath")
+                }
         }
     }
 }
