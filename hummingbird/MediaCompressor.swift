@@ -57,7 +57,24 @@ final class MediaCompressor {
     static func encode(image: UIImage, quality: CGFloat, format: ImageFormat) -> Data {
         switch format {
         case .jpeg:
-            return image.jpegData(compressionQuality: max(0.01, min(1.0, quality))) ?? Data()
+            // 使用 MozJPEG 压缩
+            let normalizedQuality = max(0.01, min(1.0, quality))
+            if let mozjpegData = MozJPEGEncoder.encode(image, quality: normalizedQuality) {
+                let originalSize = image.jpegData(compressionQuality: normalizedQuality)?.count ?? 0
+                let compressedSize = mozjpegData.count
+                let compressionRatio = originalSize > 0 ? Double(compressedSize) / Double(originalSize) : 0.0
+                print("✅ [MozJPEG] 压缩成功 - 质量: \(normalizedQuality), 原始大小: \(originalSize) bytes, 压缩后: \(compressedSize) bytes, 压缩比: \(String(format: "%.2f%%", compressionRatio * 100))")
+                return mozjpegData
+            }
+            // 如果 MozJPEG 失败，回退到系统默认
+            print("⚠️ [MozJPEG] 压缩失败，回退到系统默认 JPEG 压缩 - 质量: \(normalizedQuality)")
+            if let systemData = image.jpegData(compressionQuality: normalizedQuality) {
+                print("✅ [系统默认] JPEG 压缩成功 - 大小: \(systemData.count) bytes")
+                return systemData
+            } else {
+                print("❌ [系统默认] JPEG 压缩失败")
+                return Data()
+            }
         case .heic:
             if #available(iOS 11.0, *) {
                 let mutableData = NSMutableData()

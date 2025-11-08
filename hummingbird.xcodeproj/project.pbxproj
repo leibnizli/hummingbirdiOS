@@ -6,13 +6,22 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7AA00648FEEB8B9B28529BE0 /* Pods_hummingbird.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 557D59E54308138129E6A581 /* Pods_hummingbird.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		3EEB77DF673A34FC790F34F8 /* Pods-hummingbird.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hummingbird.debug.xcconfig"; path = "Target Support Files/Pods-hummingbird/Pods-hummingbird.debug.xcconfig"; sourceTree = "<group>"; };
+		4281E4EA77CC1BBB1F949723 /* Pods-hummingbird.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-hummingbird.release.xcconfig"; path = "Target Support Files/Pods-hummingbird/Pods-hummingbird.release.xcconfig"; sourceTree = "<group>"; };
+		557D59E54308138129E6A581 /* Pods_hummingbird.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_hummingbird.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		84E0DCB42EBA3266006AD34D /* hummingbird.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hummingbird.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		84E0DCB62EBA3266006AD34D /* hummingbird */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = hummingbird;
 			sourceTree = "<group>";
 		};
@@ -23,17 +32,28 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7AA00648FEEB8B9B28529BE0 /* Pods_hummingbird.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4D1986006137156E4CA24DB3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				557D59E54308138129E6A581 /* Pods_hummingbird.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		84E0DCAB2EBA3266006AD34D = {
 			isa = PBXGroup;
 			children = (
 				84E0DCB62EBA3266006AD34D /* hummingbird */,
 				84E0DCB52EBA3266006AD34D /* Products */,
+				918775390AF8F03408536818 /* Pods */,
+				4D1986006137156E4CA24DB3 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -45,6 +65,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		918775390AF8F03408536818 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				3EEB77DF673A34FC790F34F8 /* Pods-hummingbird.debug.xcconfig */,
+				4281E4EA77CC1BBB1F949723 /* Pods-hummingbird.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -52,9 +81,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 84E0DCC12EBA3268006AD34D /* Build configuration list for PBXNativeTarget "hummingbird" */;
 			buildPhases = (
+				A39EEBA459BD8F5D1EDFAD96 /* [CP] Check Pods Manifest.lock */,
 				84E0DCB02EBA3266006AD34D /* Sources */,
 				84E0DCB12EBA3266006AD34D /* Frameworks */,
 				84E0DCB22EBA3266006AD34D /* Resources */,
+				334E23DED9E2CC4868894AB7 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -64,8 +95,6 @@
 				84E0DCB62EBA3266006AD34D /* hummingbird */,
 			);
 			name = hummingbird;
-			packageProductDependencies = (
-			);
 			productName = hummingbird;
 			productReference = 84E0DCB42EBA3266006AD34D /* hummingbird.app */;
 			productType = "com.apple.product-type.application";
@@ -82,6 +111,7 @@
 				TargetAttributes = {
 					84E0DCB32EBA3266006AD34D = {
 						CreatedOnToolsVersion = 26.0.1;
+						LastSwiftMigration = 2610;
 					};
 				};
 			};
@@ -113,6 +143,48 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		334E23DED9E2CC4868894AB7 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-hummingbird/Pods-hummingbird-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-hummingbird/Pods-hummingbird-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-hummingbird/Pods-hummingbird-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		A39EEBA459BD8F5D1EDFAD96 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-hummingbird-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		84E0DCB02EBA3266006AD34D /* Sources */ = {
@@ -163,7 +235,7 @@
 				DEVELOPMENT_TEAM = XTWM4R2294;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -228,7 +300,7 @@
 				DEVELOPMENT_TEAM = XTWM4R2294;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -250,14 +322,17 @@
 		};
 		84E0DCC22EBA3268006AD34D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3EEB77DF673A34FC790F34F8 /* Pods-hummingbird.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XTWM4R2294;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hummingbird;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "需要访问相册以保存压缩后的图片和视频";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要访问相册以选择要压缩的图片和视频";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -266,6 +341,7 @@
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -277,6 +353,8 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "hummingbird/hummingbird-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -285,14 +363,17 @@
 		};
 		84E0DCC32EBA3268006AD34D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4281E4EA77CC1BBB1F949723 /* Pods-hummingbird.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XTWM4R2294;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hummingbird;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "需要访问相册以保存压缩后的图片和视频";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要访问相册以选择要压缩的图片和视频";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -301,6 +382,7 @@
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -312,6 +394,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "hummingbird/hummingbird-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

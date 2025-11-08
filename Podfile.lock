@@ -1,0 +1,16 @@
+PODS:
+  - mozjpeg (3.3.2)
+
+DEPENDENCIES:
+  - mozjpeg (~> 3.3)
+
+SPEC REPOS:
+  trunk:
+    - mozjpeg
+
+SPEC CHECKSUMS:
+  mozjpeg: bbe5f12952c272e10063446feaf7ec09a800c5e3
+
+PODFILE CHECKSUM: 4fc30988bfa3c5c6a5f74065ba2ef8dddefa88a0
+
+COCOAPODS: 1.16.2
