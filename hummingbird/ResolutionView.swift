@@ -195,7 +195,21 @@ struct ResolutionView: View {
         isProcessing = true
         
         Task {
-            for item in mediaItems where item.status == .pending {
+            // 重置所有项目状态，以便重新处理
+            await MainActor.run {
+                for item in mediaItems {
+                    item.status = .pending
+                    item.progress = 0
+                    item.compressedData = nil
+                    item.compressedSize = 0
+                    item.compressedResolution = nil
+                    item.compressedVideoURL = nil
+                    item.usedBitrate = nil
+                    item.errorMessage = nil
+                }
+            }
+            
+            for item in mediaItems {
                 await resizeItem(item)
             }
             await MainActor.run {
@@ -245,8 +259,8 @@ struct ResolutionView: View {
         // 修正方向
         image = image.fixOrientation()
         
-        // 编码为JPEG（质量100%保持清晰度）
-        guard let resizedData = image.jpegData(compressionQuality: 1.0) else {
+        // 编码为JPEG（使用 0.9 质量，保持高质量同时避免文件过大）
+        guard let resizedData = image.jpegData(compressionQuality: 0.9) else {
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "无法编码图片"

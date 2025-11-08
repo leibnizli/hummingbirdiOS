@@ -429,7 +429,7 @@ extension UIImage {
         
         // 使用 UIGraphicsImageRenderer 重新绘制，自动处理方向
         let format = UIGraphicsImageRendererFormat()
-        format.scale = scale  // 使用原始图片的 scale，保持像素尺寸
+        format.scale = 1.0  // 使用 1.0 保持像素尺寸不变
         format.opaque = false
         
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
