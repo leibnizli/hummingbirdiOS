@@ -516,7 +516,6 @@ struct CompressionView: View {
                     item.compressedSize = 0
                     item.compressedResolution = nil
                     item.compressedVideoURL = nil
-                    item.usedBitrate = nil
                     item.errorMessage = nil
                 }
             }
@@ -744,12 +743,8 @@ struct CompressionView: View {
                             }
                         }
                         
-                        // 使用原始分辨率计算比特率（从 item.originalResolution）
-                        if let originalResolution = item.originalResolution {
-                            let bitrateBps = settings.calculateBitrate(for: originalResolution)
-                            item.usedBitrate = Double(bitrateBps) / 1_000_000.0 // 转换为 Mbps
-                            print("✅ 设置比特率: \(item.usedBitrate ?? 0) Mbps (分辨率: \(originalResolution))")
-                        }
+                        // FFmpeg 使用 CRF 模式，不使用固定比特率
+                        // 移除了误导性的比特率显示
                         
                         item.status = .completed
                         item.progress = 1.0

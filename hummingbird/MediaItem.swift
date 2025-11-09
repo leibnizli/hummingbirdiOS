@@ -39,9 +39,6 @@ class MediaItem: Identifiable, ObservableObject {
     @Published var originalResolution: CGSize?
     @Published var compressedResolution: CGSize?
     
-    // 视频压缩使用的比特率（Mbps，仅视频有效）
-    @Published var usedBitrate: Double?
-    
     // 视频时长（秒，仅视频有效）
     @Published var duration: Double?
     

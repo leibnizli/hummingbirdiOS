@@ -111,38 +111,10 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     
-                    // 比特率控制模式
-                    Picker("比特率控制", selection: $settings.bitrateControlMode) {
-                        ForEach(BitrateControlMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    
-                    // 手动比特率设置
-                    if settings.bitrateControlMode == .manual {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("目标比特率")
-                                Spacer()
-                                Text("\(String(format: "%.1f Mbps", settings.customBitrate))")
-                                    .foregroundStyle(.secondary)
-                            }
-                            Slider(value: $settings.customBitrate, in: 1.0...50.0, step: 0.5)
-                            
-                            Text("更高的比特率意味着更好的质量和更大的文件大小。4K建议20-40Mbps，1080p建议6-12Mbps")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    
-                    // 两遍编码
-                    Toggle("两遍编码", isOn: $settings.twoPassEncoding)
-                        .disabled(true)  // 暂时禁用，未来版本实现
-                    
                 } header: {
                     Text("视频压缩 (FFmpeg)")
                 } footer: {
-                    Text("H.265提供更高压缩率但需要更多处理时间。可以选择CRF模式（推荐）获得稳定质量，或手动设置比特率。编码速度越慢，压缩效果越好。")
+                    Text("H.265提供更高压缩率但需要更多处理时间。可以选择CRF模式（推荐）获得稳定质量。编码速度越慢，压缩效果越好。")
                 }
             }
             .navigationTitle("压缩设置")

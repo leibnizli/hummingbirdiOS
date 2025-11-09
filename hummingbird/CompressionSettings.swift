@@ -42,14 +42,6 @@ enum ImageResolution: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - 比特率控制模式
-enum BitrateControlMode: String, CaseIterable, Identifiable {
-    case auto = "自动（根据质量）"
-    case manual = "手动设置"
-    
-    var id: String { rawValue }
-}
-
 // MARK: - 视频编码器
 enum VideoCodec: String, CaseIterable, Identifiable {
     case h264 = "H.264 (兼容性好)"
@@ -135,10 +127,7 @@ class CompressionSettings: ObservableObject {
     @Published var videoQualityPreset: VideoQualityPreset = .medium  // 质量预设
     @Published var crfQualityMode: CRFQualityMode = .high  // CRF 质量模式
     @Published var customCRF: Int = 23  // 自定义 CRF 值 (0-51, 越小质量越好)
-    @Published var bitrateControlMode: BitrateControlMode = .auto
-    @Published var customBitrate: Double = 5.0  // Mbps，用于手动模式
     @Published var useHardwareAcceleration: Bool = true  // 使用硬件加速
-    @Published var twoPassEncoding: Bool = false  // 使用两遍编码（更好的质量控制）
     
     // 获取 CRF 值
     func getCRFValue() -> Int {
@@ -146,31 +135,6 @@ class CompressionSettings: ObservableObject {
             return crfValue
         }
         return customCRF
-    }
-    
-    // 计算实际使用的比特率（bps）- 用于比特率模式
-    func calculateBitrate(for videoSize: CGSize) -> Int {
-        switch bitrateControlMode {
-        case .auto:
-            // 根据分辨率自动计算合理的比特率
-            let pixelCount = videoSize.width * videoSize.height
-            
-            let bitsPerPixel: Double
-            if pixelCount <= 1_000_000 {  // <= 720p
-                bitsPerPixel = 2.0
-            } else if pixelCount <= 2_500_000 {  // <= 1080p
-                bitsPerPixel = 1.9
-            } else if pixelCount <= 5_000_000 {  // <= 1440p
-                bitsPerPixel = 1.5
-            } else {  // > 1440p (4K等)
-                bitsPerPixel = 1.0
-            }
-            
-            return Int(pixelCount * bitsPerPixel)
-        case .manual:
-            // 使用用户设置的比特率（Mbps 转 bps）
-            return Int(customBitrate * 1_000_000)
-        }
     }
     
     // 生成 FFmpeg 命令参数

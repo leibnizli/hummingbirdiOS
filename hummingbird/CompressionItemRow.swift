@@ -129,25 +129,6 @@ struct CompressionItemRow: View {
                                     .foregroundStyle(.secondary)
                             }
                             
-                            // 显示视频比特率（仅视频）
-                            if item.isVideo {
-                                HStack {
-                                    Text("使用比特率:")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                    if let bitrate = item.usedBitrate {
-                                        Text(String(format: "%.2f Mbps", bitrate))
-                                            .font(.caption)
-                                            .foregroundStyle(.purple)
-                                    } else {
-                                        Text("未设置")
-                                            .font(.caption)
-                                            .foregroundStyle(.orange)
-                                    }
-                                }
-                            }
-                            
                             HStack {
                                 Text("减少: \(item.formatBytes(item.savedSize))")
                                     .font(.caption)
