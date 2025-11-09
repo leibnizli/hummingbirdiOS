@@ -134,6 +134,28 @@ class FFmpegVideoCompressor {
     ) {
         let inputPath = inputURL.path
         let outputPath = outputURL.path
+        let outputExtension = outputURL.pathExtension.lowercased()
+
+        // 检查源视频的编码格式
+        let asset = AVURLAsset(url: inputURL)
+        var isHEVC = false
+        if let videoTrack = asset.tracks(withMediaType: .video).first {
+            let formatDescriptions = videoTrack.formatDescriptions as! [CMFormatDescription]
+            if let formatDescription = formatDescriptions.first {
+                let codecType = CMFormatDescriptionGetMediaSubType(formatDescription)
+                // HEVC 的 codec type 是 'hvc1' 或 'hev1'
+                isHEVC = (codecType == kCMVideoCodecType_HEVC || 
+                         codecType == kCMVideoCodecType_HEVCWithAlpha)
+            }
+        }
+        
+        // 如果输出是 M4V 且源视频是 HEVC，不能使用 remux（M4V 不支持 HEVC）
+        if outputExtension == "m4v" && isHEVC {
+            print("⚠️ [FFmpeg Remux] M4V 不支持 HEVC 编码，remux 失败")
+            completion(.failure(NSError(domain: "FFmpeg", code: -1, 
+                userInfo: [NSLocalizedDescriptionKey: "M4V 容器不支持 HEVC 编码，需要重新编码"])))
+            return
+        }
 
         // -c copy 表示直接拷贝流，避免重新编码
         let command = "-i \"\(inputPath)\" -c copy -movflags +faststart \"\(outputPath)\""

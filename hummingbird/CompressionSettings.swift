@@ -185,8 +185,22 @@ class CompressionSettings: ObservableObject {
         // 输入文件
         command += "-i \"\(inputPath)\""
         
+        // 检测输出格式，M4V 容器只支持 H.264
+        let outputExtension = (outputPath as NSString).pathExtension.lowercased()
+        let effectiveCodec: VideoCodec
+        
+        if outputExtension == "m4v" {
+            // M4V 容器不支持 HEVC，强制使用 H.264
+            effectiveCodec = .h264
+            if videoCodec == .h265 {
+                print("⚠️ [FFmpeg] M4V 容器不支持 H.265，自动切换到 H.264")
+            }
+        } else {
+            effectiveCodec = videoCodec
+        }
+        
         // 视频编码器
-        command += " -c:v \(videoCodec.ffmpegCodec)"
+        command += " -c:v \(effectiveCodec.ffmpegCodec)"
         
         // 质量预设
         command += " -preset \(videoQualityPreset.ffmpegPreset)"
@@ -202,7 +216,7 @@ class CompressionSettings: ObservableObject {
         command += " -pix_fmt yuv420p"
         
         // 视频标签 - 对于 HEVC，添加兼容性标签
-        if videoCodec == .h265 {
+        if effectiveCodec == .h265 {
             command += " -tag:v hvc1"  // 使用 hvc1 标签以提高兼容性
         }
         
