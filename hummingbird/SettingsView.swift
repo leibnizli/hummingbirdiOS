@@ -56,10 +56,16 @@ struct SettingsView: View {
                 
                 Section {
                     // 视频编码器
-                    Picker("视频编码器", selection: $settings.videoCodec) {
-                        ForEach(VideoCodec.allCases) { codec in
-                            Text(codec.rawValue).tag(codec)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Picker("视频编码器", selection: $settings.videoCodec) {
+                            ForEach(VideoCodec.allCases) { codec in
+                                Text(codec.rawValue).tag(codec)
+                            }
                         }
+                        
+                        Text(settings.videoCodec.description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     
                     // 质量预设
@@ -96,8 +102,14 @@ struct SettingsView: View {
                         }
                     }
                     
-                    // 硬件加速
-                    Toggle("硬件加速", isOn: $settings.useHardwareAcceleration)
+                    // 硬件解码加速
+                    VStack(alignment: .leading, spacing: 4) {
+                        Toggle("硬件解码加速", isOn: $settings.useHardwareAcceleration)
+                        
+                        Text("使用硬件加速解码输入视频，提升处理速度")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     
                     // 两遍编码
                     Toggle("两遍编码", isOn: $settings.twoPassEncoding)
@@ -106,7 +118,7 @@ struct SettingsView: View {
                 } header: {
                     Text("视频压缩 (FFmpeg)")
                 } footer: {
-                    Text("使用 FFmpeg 进行视频压缩。H.265 压缩率更高但编码较慢。编码速度影响压缩时间和质量。CRF 模式提供恒定质量，推荐使用高质量 (CRF 23)")
+                    Text("所有编码器都使用硬件加速。H.265 压缩率更高，文件更小。编码速度影响压缩时间和质量。CRF 模式提供恒定质量，推荐使用高质量 (CRF 23)")
                 }
             }
             .navigationTitle("压缩设置")

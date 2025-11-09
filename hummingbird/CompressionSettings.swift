@@ -52,8 +52,8 @@ enum BitrateControlMode: String, CaseIterable, Identifiable {
 
 // MARK: - 视频编码器
 enum VideoCodec: String, CaseIterable, Identifiable {
-    case h264 = "H.264 (硬件加速)"
-    case h265 = "H.265/HEVC (硬件加速)"
+    case h264 = "H.264 (兼容性好)"
+    case h265 = "H.265/HEVC (压缩率高)"
     
     var id: String { rawValue }
     
@@ -61,6 +61,13 @@ enum VideoCodec: String, CaseIterable, Identifiable {
         switch self {
         case .h264: return "h264_videotoolbox"  // 使用 iOS 硬件编码器
         case .h265: return "hevc_videotoolbox"  // 使用 iOS 硬件编码器
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .h264: return "使用硬件编码，兼容性最好"
+        case .h265: return "使用硬件编码，文件更小"
         }
     }
 }
@@ -124,7 +131,7 @@ class CompressionSettings: ObservableObject {
     @Published var preferHEIC: Bool = false  // 优先使用 HEIC 格式
     
     // 视频设置 - FFmpeg 参数
-    @Published var videoCodec: VideoCodec = .h264  // 视频编码器
+    @Published var videoCodec: VideoCodec = .h265  // 视频编码器 - 默认使用 H.265/HEVC
     @Published var videoQualityPreset: VideoQualityPreset = .medium  // 质量预设
     @Published var crfQualityMode: CRFQualityMode = .high  // CRF 质量模式
     @Published var customCRF: Int = 23  // 自定义 CRF 值 (0-51, 越小质量越好)
