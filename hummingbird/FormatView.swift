@@ -20,6 +20,7 @@ struct FormatView: View {
     @State private var useHEVC: Bool = true // 默认使用 HEVC
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
+    @State private var showingSettings = false
     
     var body: some View {
         NavigationView {
@@ -80,10 +81,10 @@ struct FormatView: View {
                 // 格式设置
                 VStack(spacing: 12) {
                     HStack {
-                        Text("图片格式")
+                        Text("目标图片格式")
                             .font(.headline)
                         Spacer()
-                        Picker("图片格式", selection: $targetImageFormat) {
+                        Picker("目标图片格式", selection: $targetImageFormat) {
                             Text("JPEG").tag(ImageFormat.jpeg)
                             Text("PNG").tag(ImageFormat.png)
                         }
@@ -91,27 +92,17 @@ struct FormatView: View {
                         .frame(width: 150)
                     }
                     
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("视频格式")
-                                .font(.headline)
-                            Spacer()
-                            Picker("视频格式", selection: $targetVideoFormat) {
-                                Text("MP4").tag(VideoFormat.mp4)
-                                Text("MOV").tag(VideoFormat.mov)
-                                Text("M4V").tag(VideoFormat.m4v)
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(width: 200)
+                    HStack {
+                        Text("目标视频格式")
+                            .font(.headline)
+                        Spacer()
+                        Picker("目标视频格式", selection: $targetVideoFormat) {
+                            Text("MP4").tag(VideoFormat.mp4)
+                            Text("MOV").tag(VideoFormat.mov)
+                            Text("M4V").tag(VideoFormat.m4v)
                         }
-                        
-                        HStack {
-                            Text("编码方式")
-                                .font(.headline)
-                            Spacer()
-                            Toggle("使用 HEVC (H.265)", isOn: $useHEVC)
-                        }
-                        .opacity(AVAssetExportSession.allExportPresets().contains(AVAssetExportPresetHEVCHighestQuality) ? 1 : 0)
+                        .pickerStyle(.segmented)
+                        .frame(width: 200)
                     }
                 }
                 .padding()
@@ -148,6 +139,16 @@ struct FormatView: View {
             }
             .navigationTitle("格式转换")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            FormatSettingsView(useHEVC: $useHEVC)
         }
         .onChange(of: selectedItems) { _, newItems in
             guard !newItems.isEmpty else { return }
@@ -806,6 +807,41 @@ enum VideoFormat: String, CaseIterable {
         case .mp4: return .mp4
         case .mov: return .mov
         case .m4v: return .m4v
+        }
+    }
+}
+
+// MARK: - 格式转换设置视图
+struct FormatSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var useHEVC: Bool
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("使用 HEVC (H.265) 编码", isOn: $useHEVC)
+                        
+                        Text("HEVC 编码可以在保持相同质量的情况下减小文件大小，但兼容性可能不如 H.264")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("视频编码设置")
+                }
+                .opacity(AVAssetExportSession.allExportPresets().contains(AVAssetExportPresetHEVCHighestQuality) ? 1 : 0.5)
+                .disabled(!AVAssetExportSession.allExportPresets().contains(AVAssetExportPresetHEVCHighestQuality))
+            }
+            .navigationTitle("格式转换设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }

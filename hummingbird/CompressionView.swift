@@ -112,7 +112,7 @@ struct CompressionView: View {
             .navigationTitle("媒体压缩")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape")
                     }
@@ -149,6 +149,11 @@ struct CompressionView: View {
     }
     //选择文件 icloud
     private func loadFileURLs(_ urls: [URL]) async {
+        // 清空之前的列表
+        await MainActor.run {
+            mediaItems.removeAll()
+        }
+        
         for url in urls {
             // 验证文件是否可访问
             guard url.startAccessingSecurityScopedResource() else { continue }

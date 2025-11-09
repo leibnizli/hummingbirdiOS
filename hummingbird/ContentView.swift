@@ -12,7 +12,7 @@ struct ContentView: View {
         TabView {
             CompressionView()
                 .tabItem {
-                    Label("压缩", systemImage: "arrow.down.circle")
+                    Label("压缩", systemImage: "bolt.fill")
                 }
             
             FormatView()
