@@ -229,10 +229,19 @@ final class MediaCompressor {
         progressHandler: @escaping (Float) -> Void,
         completion: @escaping (Result<URL, Error>) -> Void
     ) -> AVAssetExportSession? {
-        // 使用 FFmpeg 进行视频压缩，保持原始格式
-        let outputExtension = sourceURL.pathExtension.isEmpty ? 
-            (outputFileType == .mov ? "mov" : "mp4") : 
-            sourceURL.pathExtension
+        // 使用 FFmpeg 进行视频压缩
+        // 以前此处优先使用 sourceURL 的扩展名，导致传入的 outputFileType 参数无法生效。
+        // 现在优先依据 outputFileType 选择输出容器扩展名（以便调用方可以指定 mp4/mov/m4v 等），
+        // 如果需要更多容器支持，可通过扩展此处的映射或改为接受字符串参数。
+        let outputExtension: String
+        switch outputFileType {
+        case .mov:
+            outputExtension = "mov"
+        case .m4v:
+            outputExtension = "m4v"
+        default:
+            outputExtension = "mp4"
+        }
             
         let outputURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("compressed_\(UUID().uuidString)")

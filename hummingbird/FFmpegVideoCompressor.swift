@@ -125,5 +125,52 @@ class FFmpegVideoCompressor {
     static func cancelAllSessions() {
         FFmpegKit.cancel()
     }
+
+    // 将输入文件的流（音视频）拷贝到指定容器（无重新编码），用于快速改变容器/扩展名
+    static func remux(
+        inputURL: URL,
+        outputURL: URL,
+        completion: @escaping (Result<URL, Error>) -> Void
+    ) {
+        let inputPath = inputURL.path
+        let outputPath = outputURL.path
+
+        // -c copy 表示直接拷贝流，避免重新编码
+        let command = "-i \"\(inputPath)\" -c copy -movflags +faststart \"\(outputPath)\""
+
+        print("🎬 [FFmpeg Remux] 开始 remux")
+        print("📝 [FFmpeg Remux] 命令: ffmpeg \(command)")
+
+        var hasCompleted = false
+        let completionLock = NSLock()
+        let safeCompletion: (Result<URL, Error>) -> Void = { result in
+            completionLock.lock()
+            defer { completionLock.unlock() }
+            if !hasCompleted {
+                hasCompleted = true
+                completion(result)
+            }
+        }
+
+        FFmpegKit.executeAsync(command, withCompleteCallback: { session in
+            guard let session = session else {
+                safeCompletion(.failure(NSError(domain: "FFmpeg", code: -1, userInfo: [NSLocalizedDescriptionKey: "会话创建失败"])))
+                return
+            }
+
+            let returnCode = session.getReturnCode()
+            if ReturnCode.isSuccess(returnCode) {
+                print("✅ [FFmpeg Remux] 成功: \(outputPath)")
+                safeCompletion(.success(outputURL))
+            } else {
+                let errorMessage = session.getOutput() ?? "未知错误"
+                print("❌ [FFmpeg Remux] 失败: \(String(describing: returnCode?.getValue()))")
+                let lines = errorMessage.split(separator: "\n")
+                let errorLines = lines.suffix(10).joined(separator: "\n")
+                print("错误信息:\n\(errorLines)")
+                safeCompletion(.failure(NSError(domain: "FFmpeg", code: Int(returnCode?.getValue() ?? -1), userInfo: [NSLocalizedDescriptionKey: "remux 失败"])))
+            }
+        }, withLogCallback: { _ in }, withStatisticsCallback: { _ in })
+    }
 }
 

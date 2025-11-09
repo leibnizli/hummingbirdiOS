@@ -147,7 +147,7 @@ struct CompressionView: View {
             }
         }
     }
-    
+    //选择文件 icloud
     private func loadFileURLs(_ urls: [URL]) async {
         for url in urls {
             // 验证文件是否可访问
@@ -170,20 +170,30 @@ struct CompressionView: View {
                 await MainActor.run {
                     mediaItem.originalData = data
                     mediaItem.originalSize = data.count
-                    mediaItem.fileExtension = url.pathExtension.lowercased()
                     
-                    // 设置格式
-                    if isVideo {
-                        mediaItem.outputVideoFormat = url.pathExtension.lowercased()
-                    } else if let type = UTType(filenameExtension: url.pathExtension) {
-                        if type.conforms(to: .png) {
-                            mediaItem.originalImageFormat = .png
-                        } else if type.conforms(to: .heic) {
-                            mediaItem.originalImageFormat = .heic
-                        } else if type.conforms(to: .webP) {
-                            mediaItem.originalImageFormat = .webp
+                    // 使用 UTType 获取更准确的扩展名
+                    if let type = UTType(filenameExtension: url.pathExtension) {
+                        mediaItem.fileExtension = type.preferredFilenameExtension?.lowercased() ?? url.pathExtension.lowercased()
+                        
+                        // 设置格式
+                        if isVideo {
+                            mediaItem.outputVideoFormat = type.preferredFilenameExtension?.lowercased() ?? url.pathExtension.lowercased()
                         } else {
-                            mediaItem.originalImageFormat = .jpeg
+                            if type.conforms(to: .png) {
+                                mediaItem.originalImageFormat = .png
+                            } else if type.conforms(to: .heic) {
+                                mediaItem.originalImageFormat = .heic
+                            } else if type.conforms(to: .webP) {
+                                mediaItem.originalImageFormat = .webp
+                            } else {
+                                mediaItem.originalImageFormat = .jpeg
+                            }
+                        }
+                    } else {
+                        // 回退到文件扩展名
+                        mediaItem.fileExtension = url.pathExtension.lowercased()
+                        if isVideo {
+                            mediaItem.outputVideoFormat = url.pathExtension.lowercased()
                         }
                     }
                     
@@ -197,17 +207,18 @@ struct CompressionView: View {
                 
                 // 如果是视频，处理视频相关信息
                 if isVideo {
-                    // 创建临时文件
+                    // 创建临时文件，使用检测到的扩展名
+                    let detectedExtension = mediaItem.fileExtension ?? url.pathExtension
                     let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
                         .appendingPathComponent("source_\(mediaItem.id.uuidString)")
-                        .appendingPathExtension(url.pathExtension)
+                        .appendingPathExtension(detectedExtension)
                     try data.write(to: tempURL)
                     
                     await MainActor.run {
                         mediaItem.sourceVideoURL = tempURL
                     }
                     
-                    // 加载视频元数据
+                    // 加载视频元数据（会进一步验证格式）
                     await loadVideoMetadata(for: mediaItem, url: tempURL)
                 }
             } catch {
@@ -218,9 +229,11 @@ struct CompressionView: View {
             }
         }
     }
-    
+    //从相册选择
     private func loadSelectedItems(_ items: [PhotosPickerItem]) async {
-        mediaItems.removeAll()
+        await MainActor.run {
+            mediaItems.removeAll()
+        }
         
         for item in items {
             let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) })
@@ -294,10 +307,16 @@ struct CompressionView: View {
         
         // 检查所有支持的内容类型
         for contentType in item.supportedContentTypes {
+            // M4V 格式检测（优先检测，因为 m4v 也可能匹配 mpeg4Movie）
+            if contentType.identifier == "public.m4v" ||
+               contentType.preferredFilenameExtension == "m4v" {
+                detectedFormat = "m4v"
+                break
+            }
             // MOV 格式检测
-            if contentType.identifier == "com.apple.quicktime-movie" ||
-               contentType.conforms(to: .quickTimeMovie) ||
-               contentType.preferredFilenameExtension == "mov" {
+            else if contentType.identifier == "com.apple.quicktime-movie" ||
+                    contentType.conforms(to: .quickTimeMovie) ||
+                    contentType.preferredFilenameExtension == "mov" {
                 detectedFormat = "mov"
                 break
             }
@@ -348,7 +367,7 @@ struct CompressionView: View {
             }
         }
         
-        // 优化：使用 URL 方式加载视频，避免将整个文件加载到内存
+        // 先尝试使用 URL 方式加载（更高效）
         if let url = try? await item.loadTransferable(type: URL.self) {
             await MainActor.run {
                 mediaItem.sourceVideoURL = url
@@ -358,28 +377,51 @@ struct CompressionView: View {
                     mediaItem.originalSize = fileSize
                 }
                 
-                // 异步获取视频信息和缩略图
+                // 立即设置为 pending 状态，让用户看到视频已添加
+                mediaItem.status = .pending
+                
+                // 在后台异步获取视频信息和缩略图
                 Task {
                     await loadVideoMetadata(for: mediaItem, url: url)
                 }
             }
-        } else {
-            // 回退到数据加载方式（兼容性）
-            if let data = try? await item.loadTransferable(type: Data.self) {
+        } else if let data = try? await item.loadTransferable(type: Data.self) {
+            // 如果 URL 方式失败，使用 Data 方式加载
+            await MainActor.run {
+                mediaItem.originalData = data
+                mediaItem.originalSize = data.count
+            }
+            
+            // 创建临时文件
+            let detectedExtension = mediaItem.fileExtension.isEmpty ? "mp4" : mediaItem.fileExtension
+            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("source_\(mediaItem.id.uuidString)")
+                .appendingPathExtension(detectedExtension)
+            
+            do {
+                try data.write(to: tempURL)
+                
                 await MainActor.run {
-                    mediaItem.originalData = data
-                    mediaItem.originalSize = data.count
-                    
-                    let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                        .appendingPathComponent("source_\(mediaItem.id.uuidString)")
-                        .appendingPathExtension("mov")
-                    try? data.write(to: tempURL)
                     mediaItem.sourceVideoURL = tempURL
+                    // 立即设置为 pending 状态
+                    mediaItem.status = .pending
                     
+                    // 在后台异步获取视频信息和缩略图
                     Task {
                         await loadVideoMetadata(for: mediaItem, url: tempURL)
                     }
                 }
+            } catch {
+                await MainActor.run {
+                    mediaItem.status = .failed
+                    mediaItem.errorMessage = "无法创建临时视频文件: \(error.localizedDescription)"
+                }
+            }
+        } else {
+            // 如果两种方式都失败，标记为失败
+            await MainActor.run {
+                mediaItem.status = .failed
+                mediaItem.errorMessage = "无法加载视频文件"
             }
         }
     }
@@ -607,10 +649,22 @@ struct CompressionView: View {
         }
         
         // 使用 FFmpeg 压缩，不需要 continuation（FFmpeg 是异步回调）
+        // 根据用户或检测到的期望输出格式选择容器类型（默认为 mp4）
+        let desiredOutputFileType: AVFileType = {
+            if let fmt = item.outputVideoFormat?.lowercased() {
+                switch fmt {
+                case "mov": return .mov
+                case "m4v": return .m4v
+                default: return .mp4
+                }
+            }
+            return .mp4
+        }()
+
         MediaCompressor.compressVideo(
             at: sourceURL,
             settings: settings,
-            outputFileType: .mp4,
+            outputFileType: desiredOutputFileType,
             progressHandler: { progress in
                 Task { @MainActor in
                     item.progress = progress
@@ -627,25 +681,60 @@ struct CompressionView: View {
                         } else {
                             compressedSize = 0
                         }
-                        
-                        // 智能判断：如果压缩后反而变大，保留原视频
+                        // 智能判断：如果压缩后反而变大，可能选择保留「原始内容」但仍应满足用户期望的容器（例如用户希望 mp4）
                         if compressedSize >= item.originalSize {
-                            print("⚠️ [视频压缩判断] 压缩后大小 (\(compressedSize) bytes) >= 原视频 (\(item.originalSize) bytes)，保留原视频")
-                            
-                            // 使用原视频
-                            item.compressedVideoURL = sourceURL
-                            item.compressedSize = item.originalSize
-                            item.compressedResolution = item.originalResolution
-                            
-                            // 清理压缩后的临时文件
+                            print("⚠️ [视频压缩判断] 压缩后大小 (\(compressedSize) bytes) >= 原视频 (\(item.originalSize) bytes)，尝试保留原始流但转换容器以匹配期望格式")
+
+                            // 如果原文件扩展名与期望容器不同，尝试无损 remux（-c copy）到期望容器
+                            let desiredExt: String = {
+                                switch desiredOutputFileType {
+                                case .mov: return "mov"
+                                case .m4v: return "m4v"
+                                default: return "mp4"
+                                }
+                            }()
+
+                            let sourceExt = sourceURL.pathExtension.lowercased()
+                            if sourceExt != desiredExt {
+                                // 创建临时 remux 输出
+                                let remuxURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                                    .appendingPathComponent("remux_\(item.id.uuidString)")
+                                    .appendingPathExtension(desiredExt)
+
+                                FFmpegVideoCompressor.remux(inputURL: sourceURL, outputURL: remuxURL) { remuxResult in
+                                    DispatchQueue.main.async {
+                                        switch remuxResult {
+                                        case .success(let finalURL):
+                                            let finalSize = (try? Data(contentsOf: finalURL).count) ?? item.originalSize
+                                            item.compressedVideoURL = finalURL
+                                            item.compressedSize = finalSize
+                                            item.compressedResolution = item.originalResolution
+                                            print("✅ [remux] 已将原始视频 remux 到 \(desiredExt), 大小: \(finalSize) bytes")
+                                        case .failure:
+                                            // remux 失败，退回到原始文件
+                                            item.compressedVideoURL = sourceURL
+                                            item.compressedSize = item.originalSize
+                                            item.compressedResolution = item.originalResolution
+                                            print("⚠️ [remux] 失败，已回退到原始视频")
+                                        }
+                                    }
+                                }
+                            } else {
+                                // 扩展名已经匹配，直接使用原视频
+                                item.compressedVideoURL = sourceURL
+                                item.compressedSize = item.originalSize
+                                item.compressedResolution = item.originalResolution
+                            }
+
+                            // 清理压缩后的临时文件（因为没使用它）
                             try? FileManager.default.removeItem(at: url)
                         } else {
                             print("✅ [视频压缩判断] 压缩成功，从 \(item.originalSize) bytes 减少到 \(compressedSize) bytes")
-                            
+
                             // 使用压缩后的视频
                             item.compressedVideoURL = url
                             item.compressedSize = compressedSize
-                            
+
                             let asset = AVURLAsset(url: url)
                             if let videoTrack = asset.tracks(withMediaType: .video).first {
                                 let size = videoTrack.naturalSize
