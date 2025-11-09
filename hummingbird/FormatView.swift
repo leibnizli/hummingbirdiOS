@@ -79,34 +79,10 @@ struct FormatView: View {
                 .background(Color(.systemBackground))
                 
                 // 格式设置
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("目标图片格式")
-                            .font(.headline)
-                        Spacer()
-                        Picker("目标图片格式", selection: $targetImageFormat) {
-                            Text("JPEG").tag(ImageFormat.jpeg)
-                            Text("PNG").tag(ImageFormat.png)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 150)
-                    }
-                    
-                    HStack {
-                        Text("目标视频格式")
-                            .font(.headline)
-                        Spacer()
-                        Picker("目标视频格式", selection: $targetVideoFormat) {
-                            Text("MP4").tag(VideoFormat.mp4)
-                            Text("MOV").tag(VideoFormat.mov)
-                            Text("M4V").tag(VideoFormat.m4v)
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 200)
-                    }
-                }
-                .padding()
-                .background(Color(.systemGray6))
+                FormatPickerView(
+                    targetImageFormat: $targetImageFormat,
+                    targetVideoFormat: $targetVideoFormat
+                )
                 
                 Divider()
                 
@@ -808,6 +784,43 @@ enum VideoFormat: String, CaseIterable {
         case .mov: return .mov
         case .m4v: return .m4v
         }
+    }
+}
+
+// MARK: - 格式选择器视图
+struct FormatPickerView: View {
+    @Binding var targetImageFormat: ImageFormat
+    @Binding var targetVideoFormat: VideoFormat
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("目标图片格式")
+                    .font(.headline)
+                Spacer()
+                Picker("目标图片格式", selection: $targetImageFormat) {
+                    Text("JPEG").tag(ImageFormat.jpeg)
+                    Text("PNG").tag(ImageFormat.png)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 150)
+            }
+            
+            HStack {
+                Text("目标视频格式")
+                    .font(.headline)
+                Spacer()
+                Picker("目标视频格式", selection: $targetVideoFormat) {
+                    Text("MP4").tag(VideoFormat.mp4)
+                    Text("MOV").tag(VideoFormat.mov)
+                    Text("M4V").tag(VideoFormat.m4v)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 200)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
     }
 }
 

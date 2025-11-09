@@ -129,7 +129,7 @@ struct CompressionView: View {
             }
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(settings: settings)
+            CompressionSettingsView(settings: settings)
         }
         .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedItems, maxSelectionCount: 20, matching: .any(of: [.images, .videos]))
         .fileImporter(

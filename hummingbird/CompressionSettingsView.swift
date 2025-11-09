@@ -1,5 +1,5 @@
 //
-//  SettingsView.swift
+//  CompressionSettingsView.swift
 //  hummingbird
 //
 //  设置视图
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct SettingsView: View {
+struct CompressionSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var settings: CompressionSettings
     

@@ -1,13 +1,30 @@
 //
-//  CompressionSettings.swift
+//  MediaSettings.swift
 //  hummingbird
 //
-//  压缩设置模型
+//  媒体处理设置和模型
 //
 
 import Foundation
 import SwiftUI
 import Combine
+
+// MARK: - 缩放模式
+enum ResizeMode: String, CaseIterable, Identifiable {
+    case cover = "填充 (Cover)"
+    case fit = "适应 (Fit)"
+    
+    var id: String { rawValue }
+    
+    var description: String {
+        switch self {
+        case .cover:
+            return "等比例缩放填充目标尺寸，可能裁剪超出部分"
+        case .fit:
+            return "等比例缩放适应目标尺寸，保持完整内容，输出实际缩放后的尺寸"
+        }
+    }
+}
 
 // MARK: - 图片分辨率
 enum ImageResolution: String, CaseIterable, Identifiable {
