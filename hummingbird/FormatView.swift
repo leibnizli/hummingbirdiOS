@@ -17,7 +17,6 @@ struct FormatView: View {
     @State private var isConverting = false
     @State private var showingPhotoPicker = false
     @State private var showingFilePicker = false
-    @State private var showingSettings = false
     @StateObject private var settings = FormatSettings()
     
     // 检查是否有媒体项正在加载
@@ -86,6 +85,72 @@ struct FormatView: View {
                         .frame(height: 0.5)
                 }
                 
+                // 设置区域
+                VStack(spacing: 0) {
+                    // 图片格式设置
+                    HStack {
+                        Text("目标图片格式")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Picker("", selection: $settings.targetImageFormat) {
+                            Text("JPEG").tag(ImageFormat.jpeg)
+                            Text("PNG").tag(ImageFormat.png)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 140)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    
+                    Divider()
+                        .padding(.leading, 16)
+                    
+                    // 视频格式设置
+                    HStack {
+                        Text("目标视频格式")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Picker("", selection: $settings.targetVideoFormat) {
+                            Text("MP4").tag("mp4")
+                            Text("MOV").tag("mov")
+                            Text("M4V").tag("m4v")
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 180)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    
+                    Divider()
+                        .padding(.leading, 16)
+                    
+                    // HEVC 开关
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("HEVC 编码")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.primary)
+                            Text("更小的文件大小，兼容性较低")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $settings.useHEVC)
+                            .labelsHidden()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .opacity(AVAssetExportSession.allExportPresets().contains(AVAssetExportPresetHEVCHighestQuality) ? 1 : 0.5)
+                    .disabled(!AVAssetExportSession.allExportPresets().contains(AVAssetExportPresetHEVCHighestQuality))
+                    
+                    Rectangle()
+                        .fill(Color(uiColor: .separator).opacity(0.5))
+                        .frame(height: 0.5)
+                }
+                .background(Color(uiColor: .systemBackground))
+                
                 // 文件列表
                 if mediaItems.isEmpty {
                     VStack(spacing: 16) {
@@ -115,18 +180,6 @@ struct FormatView: View {
             }
             .navigationTitle("格式转换")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gear")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingSettings) {
-            FormatSettingsView(settings: settings)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
         }
         .onChange(of: selectedItems) { _, newItems in
             guard !newItems.isEmpty else { return }

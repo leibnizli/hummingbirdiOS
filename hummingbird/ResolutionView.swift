@@ -27,7 +27,6 @@ struct ResolutionView: View {
     @State private var isProcessing = false
     @State private var showingFilePicker = false
     @State private var showingPhotoPicker = false
-    @State private var showingSettings = false
     @StateObject private var settings = ResolutionSettings()
     
     // 检查是否有媒体项正在加载
@@ -96,6 +95,94 @@ struct ResolutionView: View {
                         .frame(height: 0.5)
                 }
                 
+                // 设置区域
+                VStack(spacing: 0) {
+                    // 目标分辨率选择
+                    HStack {
+                        Text("目标分辨率")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Picker("", selection: $settings.targetResolution) {
+                            ForEach(ImageResolution.allCases) { resolution in
+                                Text(resolution.rawValue).tag(resolution)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    
+                    // 自定义分辨率输入
+                    if settings.targetResolution == .custom {
+                        Divider()
+                            .padding(.leading, 16)
+                        
+                        HStack(spacing: 12) {
+                            HStack {
+                                Text("宽度")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 40, alignment: .leading)
+                                TextField("1920", value: $settings.customWidth, formatter: NumberFormatter.noGrouping)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 80)
+                                Text("px")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("高度")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 40, alignment: .leading)
+                                TextField("1080", value: $settings.customHeight, formatter: NumberFormatter.noGrouping)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 80)
+                                Text("px")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                    
+                    Divider()
+                        .padding(.leading, 16)
+                    
+                    // 缩放模式选择
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("缩放模式")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Picker("", selection: $settings.resizeMode) {
+                                ForEach(ResizeMode.allCases) { mode in
+                                    Text(mode.rawValue).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 180)
+                        }
+                        
+                        Text(settings.resizeMode.description)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    
+                    Rectangle()
+                        .fill(Color(uiColor: .separator).opacity(0.5))
+                        .frame(height: 0.5)
+                }
+                .background(Color(uiColor: .systemBackground))
+                
                 // 文件列表
                 if mediaItems.isEmpty {
                     VStack(spacing: 16) {
@@ -125,24 +212,6 @@ struct ResolutionView: View {
             }
             .navigationTitle("修改分辨率")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gear")
-                            .font(.system(size: 16))
-                    }
-                }
-            }
-            .sheet(isPresented: $showingSettings) {
-                ResolutionSettingsSheet(
-                    targetResolution: $settings.targetResolution,
-                    customWidth: $settings.customWidth,
-                    customHeight: $settings.customHeight,
-                    resizeMode: $settings.resizeMode
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
         }
         .onChange(of: selectedItems) { _, newItems in
             guard !newItems.isEmpty else { return }
