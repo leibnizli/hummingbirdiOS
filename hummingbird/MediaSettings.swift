@@ -28,16 +28,16 @@ enum ResizeMode: String, CaseIterable, Identifiable {
 
 // MARK: - 图片分辨率
 enum ImageResolution: String, CaseIterable, Identifiable {
-    case wallpaper4K = "4K 壁纸 (3840×2160)"
-    case wallpaper2K = "2K 壁纸 (2560×1440)"
-    case phoneWallpaperMax = "手机壁纸大 (1242×2688)"
-    case phoneWallpaper = "手机壁纸 (1080×1920)"
-    case wallpaperHD = "高清壁纸 (1920×1080)"
-    case bannerLarge = "网站横幅大 (1920×600)"
-    case socialVertical = "社交竖图 (1080×1350)"
-    case bannerMedium = "网站横幅中 (1200×400)"
-    case socialSquare = "社交方图 (1080×1080)"
-    case videoCover720p = "视频封面 720p (1280×720)"
+    case wallpaper4K = "3840×2160(4K)"
+    case wallpaper2K = "2560×1440(2K)"
+    case phoneWallpaperMax = "1242×2688"
+    case phoneWallpaper = "1080×1920"
+    case wallpaperHD = "1920×1080"
+    case bannerLarge = "1920×600"
+    case socialVertical = "1080×1350"
+    case bannerMedium = "1200×400"
+    case socialSquare = "1080×1080"
+    case videoCover720p = "1280×720"
     case custom = "自定义"
     
     var id: String { rawValue }
