@@ -59,9 +59,7 @@ struct CompressionSettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Picker("Video Codec", selection: $settings.videoCodec) {
                             ForEach(VideoCodec.allCases) { codec in
-                                Text(codec.rawValue)
-                                    .foregroundStyle(codec == settings.videoCodec ? .blue : .primary)
-                                    .tag(codec)
+                                Text(codec.rawValue).tag(codec)
                             }
                         }
                         
@@ -73,18 +71,14 @@ struct CompressionSettingsView: View {
                     // Quality preset
                     Picker("Encoding Speed", selection: $settings.videoQualityPreset) {
                         ForEach(VideoQualityPreset.allCases) { preset in
-                            Text(preset.rawValue)
-                                .foregroundStyle(preset == settings.videoQualityPreset ? .blue : .primary)
-                                .tag(preset)
+                            Text(preset.rawValue).tag(preset)
                         }
                     }
                     
                     // CRF quality mode
                     Picker("Quality Level", selection: $settings.crfQualityMode) {
                         ForEach(CRFQualityMode.allCases) { mode in
-                            Text(mode.rawValue)
-                                .foregroundStyle(mode == settings.crfQualityMode ? .blue : .primary)
-                                .tag(mode)
+                            Text(mode.rawValue).tag(mode)
                         }
                     }
                     
