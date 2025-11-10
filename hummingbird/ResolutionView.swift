@@ -21,6 +21,13 @@ extension NumberFormatter {
     }
 }
 
+// 扩展：隐藏键盘
+extension UIApplication {
+    func hideKeyboard() {
+        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+
 struct ResolutionView: View {
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var mediaItems: [MediaItem] = []
@@ -212,6 +219,9 @@ struct ResolutionView: View {
             }
             .navigationTitle("修改分辨率")
             .navigationBarTitleDisplayMode(.inline)
+        }
+        .onTapGesture {
+            UIApplication.shared.hideKeyboard()
         }
         .onChange(of: selectedItems) { _, newItems in
             guard !newItems.isEmpty else { return }
