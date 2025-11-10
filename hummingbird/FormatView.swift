@@ -116,7 +116,7 @@ struct FormatView: View {
             .navigationTitle("格式转换")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gear")
                     }
@@ -445,18 +445,30 @@ struct FormatView: View {
     }
     
     private func startBatchConversion() {
+        print("[FormatView] startBatchConversion 被调用")
+        print("[FormatView] 媒体项数量: \(mediaItems.count)")
+        print("[FormatView] isConverting 当前状态: \(isConverting)")
+        
         // 防止重复点击
-        guard !isConverting else { return }
+        guard !isConverting else {
+            print("⚠️ [FormatView] 已在转换中，忽略重复点击")
+            return
+        }
         
         // 使用 withAnimation 确保状态变化有动画效果
         withAnimation(.easeInOut(duration: 0.2)) {
             isConverting = true
         }
+        print("[FormatView] isConverting 设置为 true")
         
         Task {
+            print("[FormatView] Task 开始执行")
+            
             // 重置所有项目状态
             await MainActor.run {
-                for item in mediaItems {
+                print("[FormatView] 重置所有项目状态")
+                for (index, item) in mediaItems.enumerated() {
+                    print("  - 项目 \(index): isVideo=\(item.isVideo), 原始大小=\(item.originalSize)")
                     item.status = .pending
                     item.progress = 0
                     item.compressedData = nil
@@ -466,51 +478,69 @@ struct FormatView: View {
                 }
             }
             
-            for item in mediaItems {
+            print("[FormatView] 开始逐个转换项目")
+            for (index, item) in mediaItems.enumerated() {
+                print("[FormatView] 转换项目 \(index)")
                 await convertItem(item)
+                print("[FormatView] 项目 \(index) 转换完成，状态: \(item.status)")
             }
             
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isConverting = false
                 }
+                print("[FormatView] 所有转换完成，isConverting 设置为 false")
             }
         }
     }
     
     private func convertItem(_ item: MediaItem) async {
+        print("🟢 [convertItem] 开始转换项目，isVideo: \(item.isVideo)")
+        
         await MainActor.run {
             item.status = .processing
             item.progress = 0
         }
+        print("🟢 [convertItem] 状态设置为 processing")
         
         if item.isVideo {
+            print("🟢 [convertItem] 这是视频，调用 convertVideo")
             await convertVideo(item)
         } else {
+            print("🟢 [convertItem] 这是图片，调用 convertImage")
+            print("🟢 [convertItem] 目标格式: \(settings.targetImageFormat.rawValue)")
             await convertImage(item)
         }
+        print("🟢 [convertItem] 转换完成")
     }
     
     private func convertImage(_ item: MediaItem) async {
+        print("[convertImage] 开始图片转换")
+        
         guard let originalData = item.originalData else {
+            print(" [convertImage] 无法加载原始图片数据")
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "无法加载原始图片"
             }
             return
         }
+        print("[convertImage] 原始数据大小: \(originalData.count) bytes")
         
         // 加载图片并修正方向
         guard var image = UIImage(data: originalData) else {
+            print(" [convertImage] 无法解码图片")
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "无法解码图片"
             }
             return
         }
+        print("[convertImage] 图片解码成功，尺寸: \(image.size)")
         
         // 修正图片方向，避免旋转问题
         image = image.fixOrientation()
+        print("[convertImage] 图片方向已修正")
         
         await MainActor.run {
             item.progress = 0.3
@@ -519,11 +549,14 @@ struct FormatView: View {
         // 转换为目标格式
         let convertedData: Data?
         let outputFormat = settings.targetImageFormat
+        print("[convertImage] 目标格式: \(outputFormat.rawValue)")
         
         switch outputFormat {
         case .jpeg:
+            print("[convertImage] 转换为 JPEG")
             let destinationData = NSMutableData()
             guard let destination = CGImageDestinationCreateWithData(destinationData, UTType.jpeg.identifier as CFString, 1, nil) else {
+                print(" [convertImage] 无法创建 JPEG destination")
                 convertedData = nil
                 break
             }
@@ -538,16 +571,21 @@ struct FormatView: View {
                 CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
                 if CGImageDestinationFinalize(destination) {
                     convertedData = destinationData as Data
+                    print("[convertImage] JPEG 转换成功，大小: \(destinationData.length) bytes")
                 } else {
+                    print(" [convertImage] JPEG finalize 失败")
                     convertedData = nil
                 }
             } else {
+                print(" [convertImage] 无法获取 cgImage")
                 convertedData = nil
             }
             
         case .png:
+            print("[convertImage] 转换为 PNG")
             let destinationData = NSMutableData()
             guard let destination = CGImageDestinationCreateWithData(destinationData, UTType.png.identifier as CFString, 1, nil) else {
+                print(" [convertImage] 无法创建 PNG destination")
                 convertedData = nil
                 break
             }
@@ -561,24 +599,35 @@ struct FormatView: View {
                 CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
                 if CGImageDestinationFinalize(destination) {
                     convertedData = destinationData as Data
+                    print("[convertImage] PNG 转换成功，大小: \(destinationData.length) bytes")
                 } else {
+                    print(" [convertImage] PNG finalize 失败")
                     convertedData = nil
                 }
             } else {
+                print(" [convertImage] 无法获取 cgImage")
                 convertedData = nil
             }
             
         case .webp:
+            print("[convertImage] 转换为 WebP")
             let webpCoder = SDImageWebPCoder.shared
             let options: [SDImageCoderOption: Any] = [
                 .encodeCompressionQuality: 1.0
             ]
             convertedData = webpCoder.encodedData(with: image, format: .webP, options: options)
+            if let data = convertedData {
+                print("[convertImage] WebP 转换成功，大小: \(data.count) bytes")
+            } else {
+                print(" [convertImage] WebP 转换失败")
+            }
             
         case .heic:
+            print("[convertImage] 转换为 HEIC")
             if #available(iOS 11.0, *) {
                 let destinationData = NSMutableData()
                 guard let destination = CGImageDestinationCreateWithData(destinationData, AVFileType.heic as CFString, 1, nil) else {
+                    print(" [convertImage] 无法创建 HEIC destination")
                     convertedData = nil
                     break
                 }
@@ -593,13 +642,17 @@ struct FormatView: View {
                     CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
                     if CGImageDestinationFinalize(destination) {
                         convertedData = destinationData as Data
+                        print("[convertImage] HEIC 转换成功，大小: \(destinationData.length) bytes")
                     } else {
+                        print(" [convertImage] HEIC finalize 失败")
                         convertedData = nil
                     }
                 } else {
+                    print(" [convertImage] 无法获取 cgImage")
                     convertedData = nil
                 }
             } else {
+                print(" [convertImage] iOS 版本不支持 HEIC")
                 convertedData = nil
             }
         }
@@ -609,6 +662,7 @@ struct FormatView: View {
         }
         
         guard let data = convertedData else {
+            print(" [convertImage] 转换失败，convertedData 为 nil")
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "格式转换失败"
@@ -616,6 +670,7 @@ struct FormatView: View {
             return
         }
         
+        print("[convertImage] 转换成功，准备保存结果")
         await MainActor.run {
             item.compressedData = data
             item.compressedSize = data.count
@@ -624,51 +679,65 @@ struct FormatView: View {
             item.status = .completed
             item.progress = 1.0
             
-            print("✅ [格式转换] \(item.originalImageFormat?.rawValue ?? "未知") -> \(outputFormat.rawValue) - 大小: \(data.count) bytes")
+            print("[格式转换] \(item.originalImageFormat?.rawValue ?? "未知") -> \(outputFormat.rawValue) - 大小: \(data.count) bytes")
         }
+        print("[convertImage] 图片转换完成")
     }
     
     private func convertVideo(_ item: MediaItem) async {
+        print("[convertVideo] 开始视频转换")
+        
         guard let sourceURL = item.sourceVideoURL else {
+            print(" [convertVideo] 无法加载原始视频 URL")
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "无法加载原始视频"
             }
             return
         }
+        print("[convertVideo] 源视频 URL: \(sourceURL.path)")
         
         let asset = AVURLAsset(url: sourceURL)
         
         // 获取原始视频信息
         guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
+            print(" [convertVideo] 无法获取视频轨道信息")
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "无法获取视频轨道信息"
             }
             return
         }
+        print("[convertVideo] 视频轨道获取成功")
         
         // 选择合适的预设
         let presetName: String
         if settings.useHEVC && AVAssetExportSession.allExportPresets().contains(AVAssetExportPresetHEVCHighestQuality) {
             presetName = AVAssetExportPresetHEVCHighestQuality
+            print("[convertVideo] 使用 HEVC 预设")
         } else {
             presetName = AVAssetExportPresetHighestQuality
+            print("[convertVideo] 使用标准高质量预设")
         }
         
         // 创建导出会话
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: presetName) else {
+            print(" [convertVideo] 无法创建导出会话")
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "无法创建导出会话"
             }
             return
         }
+        print("[convertVideo] 导出会话创建成功")
         
         let fileExtension = settings.targetVideoFormat
         let outputURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("converted_\(UUID().uuidString)")
             .appendingPathExtension(fileExtension)
+        
+        print("[convertVideo] 目标格式: \(fileExtension)")
+        print("[convertVideo] 输出 URL: \(outputURL.path)")
         
         exportSession.outputURL = outputURL
         exportSession.outputFileType = {
@@ -679,17 +748,20 @@ struct FormatView: View {
             }
         }()
         exportSession.shouldOptimizeForNetworkUse = true
+        print("[convertVideo] 导出会话配置完成")
         
         // 使用 AVFoundation 自动处理旋转和方向
         // 通过 videoComposition(withPropertiesOf:) 可以自动应用正确的变换
         do {
             let videoComposition = try await AVMutableVideoComposition.videoComposition(withPropertiesOf: asset)
             exportSession.videoComposition = videoComposition
+            print("[convertVideo] 视频合成创建成功")
         } catch {
-            print("⚠️ 创建视频合成失败，将使用默认设置: \(error)")
+            print("⚠️ [convertVideo] 创建视频合成失败，将使用默认设置: \(error)")
             // 如果自动创建失败，不设置 videoComposition，让系统使用默认处理
         }
         
+        print("[convertVideo] 开始导出视频")
         let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { t in
             Task { @MainActor in
                 item.progress = exportSession.progress
@@ -699,13 +771,16 @@ struct FormatView: View {
         RunLoop.main.add(timer, forMode: .common)
         
         await exportSession.export()
+        print("[convertVideo] 导出完成，状态: \(exportSession.status.rawValue)")
         
         await MainActor.run {
             switch exportSession.status {
             case .completed:
+                print("[convertVideo] 视频导出成功")
                 item.compressedVideoURL = outputURL
                 if let data = try? Data(contentsOf: outputURL) {
                     item.compressedSize = data.count
+                    print("[convertVideo] 输出文件大小: \(data.count) bytes")
                 }
                 
                 let resultAsset = AVURLAsset(url: outputURL)
@@ -714,18 +789,24 @@ struct FormatView: View {
                     let transform = videoTrack.preferredTransform
                     let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
                     item.compressedResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
+                    print("[convertVideo] 输出分辨率: \(item.compressedResolution!)")
                 }
                 
                 item.outputVideoFormat = fileExtension
                 item.status = .completed
                 item.progress = 1.0
                 
-                print("✅ [格式转换] 视频 -> \(fileExtension.uppercased()) - 大小: \(item.compressedSize) bytes")
+                print("[格式转换] 视频 -> \(fileExtension.uppercased()) - 大小: \(item.compressedSize) bytes")
             default:
+                print(" [convertVideo] 视频导出失败，状态: \(exportSession.status.rawValue)")
+                if let error = exportSession.error {
+                    print(" [convertVideo] 错误信息: \(error.localizedDescription)")
+                }
                 item.status = .failed
                 item.errorMessage = exportSession.error?.localizedDescription ?? "转换失败"
             }
         }
+        print("[convertVideo] 视频转换流程结束")
     }
 }
 
@@ -744,9 +825,6 @@ struct FormatSettingsView: View {
                         Picker("", selection: $settings.targetImageFormat) {
                             Text("JPEG").tag(ImageFormat.jpeg)
                             Text("PNG").tag(ImageFormat.png)
-                            //heif 不需要
-                            //Text("HEIC").tag(ImageFormat.heic)
-                            Text("WebP").tag(ImageFormat.webp)
                         }
                         .pickerStyle(.menu)
                     }

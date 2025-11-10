@@ -116,7 +116,7 @@ struct CompressionView: View {
             .navigationTitle("媒体压缩")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gear")
                     }

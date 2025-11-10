@@ -126,7 +126,7 @@ struct ResolutionView: View {
             .navigationTitle("修改分辨率")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gear")
                             .font(.system(size: 16))
