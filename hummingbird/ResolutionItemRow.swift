@@ -118,9 +118,13 @@ struct ResolutionItemRow: View {
             // 保存按钮
             if item.status == .completed {
                 Button(action: { saveToPhotos(item) }) {
-                    Label("保存到相册", systemImage: "square.and.arrow.down")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo.badge.arrow.down")
+                            .font(.subheadline)
+                        Text("保存到相册")
+                            .font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }

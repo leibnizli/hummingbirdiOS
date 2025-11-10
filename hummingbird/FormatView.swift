@@ -22,6 +22,11 @@ struct FormatView: View {
     @State private var showingFilePicker = false
     @State private var showingSettings = false
     
+    // 检查是否有媒体项正在加载
+    private var hasLoadingItems: Bool {
+        mediaItems.contains { $0.status == .loading }
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -55,7 +60,7 @@ struct FormatView: View {
                         // 右侧：开始按钮
                         Button(action: startBatchConversion) {
                             HStack(spacing: 6) {
-                                if isConverting {
+                                if isConverting || hasLoadingItems {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(0.8)
@@ -63,22 +68,25 @@ struct FormatView: View {
                                     Image(systemName: "arrow.triangle.2.circlepath")
                                         .font(.system(size: 16, weight: .bold))
                                 }
-                                Text(isConverting ? "转换中" : "开始转换")
+                                Text(isConverting ? "处理中" : hasLoadingItems ? "加载中" : "开始转换")
                                     .font(.system(size: 15, weight: .bold))
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(mediaItems.isEmpty || isConverting ? .gray : .orange)
-                        .disabled(mediaItems.isEmpty || isConverting)
+                        .tint(mediaItems.isEmpty || isConverting || hasLoadingItems ? .gray : .orange)
+                        .disabled(mediaItems.isEmpty || isConverting || hasLoadingItems)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+                    .background(Color(uiColor: .systemGroupedBackground))
+                    
+                    // 底部分隔线
+                    Rectangle()
+                        .fill(Color(uiColor: .separator).opacity(0.5))
+                        .frame(height: 0.5)
                 }
-                .background(Color(.systemBackground))
-                
-                Divider()
                 
                 // 文件列表
                 if mediaItems.isEmpty {
@@ -112,7 +120,7 @@ struct FormatView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
+                        Image(systemName: "gear")
                     }
                 }
             }
@@ -331,7 +339,10 @@ struct FormatView: View {
                     mediaItem.originalSize = fileSize
                 }
                 
-                // 异步获取视频信息和缩略图
+                // 立即设置为 pending 状态，让用户看到视频已添加
+                mediaItem.status = .pending
+                
+                // 在后台异步获取视频信息和缩略图
                 Task {
                     await loadVideoMetadata(for: mediaItem, url: url)
                 }
@@ -349,6 +360,10 @@ struct FormatView: View {
                     try? data.write(to: tempURL)
                     mediaItem.sourceVideoURL = tempURL
                     
+                    // 立即设置为 pending 状态
+                    mediaItem.status = .pending
+                    
+                    // 在后台异步获取视频信息和缩略图
                     Task {
                         await loadVideoMetadata(for: mediaItem, url: tempURL)
                     }
@@ -436,7 +451,13 @@ struct FormatView: View {
     }
     
     private func startBatchConversion() {
-        isConverting = true
+        // 防止重复点击
+        guard !isConverting else { return }
+        
+        // 使用 withAnimation 确保状态变化有动画效果
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isConverting = true
+        }
         
         Task {
             // 重置所有项目状态
@@ -454,8 +475,11 @@ struct FormatView: View {
             for item in mediaItems {
                 await convertItem(item)
             }
+            
             await MainActor.run {
-                isConverting = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isConverting = false
+                }
             }
         }
     }

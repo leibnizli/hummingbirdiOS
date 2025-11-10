@@ -19,6 +19,11 @@ struct CompressionView: View {
     @State private var showingPhotoPicker = false
     @StateObject private var settings = CompressionSettings()
     
+    // 检查是否有媒体项正在加载
+    private var hasLoadingItems: Bool {
+        mediaItems.contains { $0.status == .loading }
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -52,7 +57,7 @@ struct CompressionView: View {
                         // 右侧：开始按钮
                         Button(action: startBatchCompression) {
                             HStack(spacing: 6) {
-                                if isCompressing {
+                                if isCompressing || hasLoadingItems {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(0.8)
@@ -60,16 +65,15 @@ struct CompressionView: View {
                                     Image(systemName: "bolt.fill")
                                         .font(.system(size: 16, weight: .bold))
                                 }
-                                Text(isCompressing ? "处理中" : "开始压缩")
+                                Text(isCompressing ? "处理中" : hasLoadingItems ? "加载中" : "开始压缩")
                                     .font(.system(size: 15, weight: .bold))
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(mediaItems.isEmpty || isCompressing ? .gray : .green)
-                        .disabled(mediaItems.isEmpty || isCompressing)
-                        .animation(.easeInOut(duration: 0.2), value: isCompressing)
+                        .tint(mediaItems.isEmpty || isCompressing || hasLoadingItems ? .gray : .green)
+                        .disabled(mediaItems.isEmpty || isCompressing || hasLoadingItems)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -114,7 +118,7 @@ struct CompressionView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
+                        Image(systemName: "gear")
                     }
                 }
             }
@@ -512,8 +516,18 @@ struct CompressionView: View {
     }
     
     private func startBatchCompression() {
-        isCompressing = true
+        
         Task {
+            // 立即在主线程更新状态
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isCompressing = true
+                }
+            }
+            
+            // 给 UI 一点时间渲染
+            try? await Task.sleep(nanoseconds: 150_000_000) // 0.15秒
+            
             // 重置所有项目状态，以便重新压缩
             await MainActor.run {
                 for item in mediaItems {
@@ -530,8 +544,11 @@ struct CompressionView: View {
             for item in mediaItems {
                 await compressItem(item)
             }
+            
             await MainActor.run {
-                isCompressing = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isCompressing = false
+                }
             }
         }
     }
@@ -654,7 +671,6 @@ struct CompressionView: View {
             await item.loadVideoDataIfNeeded()
         }
         
-        // 使用 FFmpeg 压缩，不需要 continuation（FFmpeg 是异步回调）
         // 根据用户或检测到的期望输出格式选择容器类型（默认为 mp4）
         let desiredOutputFileType: AVFileType = {
             if let fmt = item.outputVideoFormat?.lowercased() {
@@ -667,17 +683,19 @@ struct CompressionView: View {
             return .mp4
         }()
 
-        MediaCompressor.compressVideo(
-            at: sourceURL,
-            settings: settings,
-            outputFileType: desiredOutputFileType,
-            progressHandler: { progress in
-                Task { @MainActor in
-                    item.progress = progress
-                }
-            },
-            completion: { result in
-                Task { @MainActor in
+        // 使用 continuation 等待压缩完成
+        await withCheckedContinuation { continuation in
+            MediaCompressor.compressVideo(
+                at: sourceURL,
+                settings: settings,
+                outputFileType: desiredOutputFileType,
+                progressHandler: { progress in
+                    Task { @MainActor in
+                        item.progress = progress
+                    }
+                },
+                completion: { result in
+                    Task { @MainActor in
                     switch result {
                     case .success(let url):
                         // 获取压缩后的文件大小
@@ -759,9 +777,13 @@ struct CompressionView: View {
                         item.status = .failed
                         item.errorMessage = error.localizedDescription
                     }
+                    
+                    // 恢复 continuation，让 async 函数继续执行
+                    continuation.resume()
                 }
             }
         )
+        }
     }
 }
 
