@@ -452,8 +452,12 @@ struct CompressionView: View {
                 let transform = try await videoTrack.load(.preferredTransform)
                 let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
                 
+                // 获取帧率
+                let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
+                
                 await MainActor.run {
                     mediaItem.originalResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
+                    mediaItem.frameRate = Double(nominalFrameRate)
                 }
             }
             

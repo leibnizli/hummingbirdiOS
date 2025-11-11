@@ -110,9 +110,12 @@ struct CompressionItemRow: View {
                                     .foregroundStyle(.secondary)
                             }
                             
-                            // 显示视频时长（仅视频）
+                            // 显示视频时长和帧率（仅视频）
                             if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -137,9 +140,12 @@ struct CompressionItemRow: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                            // 显示视频时长（仅视频）
+                            // 显示视频时长和帧率（仅视频）
                             if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

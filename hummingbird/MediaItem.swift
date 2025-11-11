@@ -42,6 +42,9 @@ class MediaItem: Identifiable, ObservableObject {
     // Video duration (seconds, video only)
     @Published var duration: Double?
     
+    // Video frame rate (fps, video only)
+    @Published var frameRate: Double?
+    
     // Original image format (detected from PhotosPickerItem)
     var originalImageFormat: ImageFormat?
     
@@ -98,6 +101,17 @@ class MediaItem: Identifiable, ObservableObject {
         } else {
             return String(format: "%d:%02d", minutes, seconds)
         }
+    }
+    
+    // Format frame rate
+    func formatFrameRate(_ frameRate: Double?) -> String {
+        guard let frameRate = frameRate, frameRate > 0 else { return "Unknown" }
+        // 如果是整数帧率，不显示小数
+        if frameRate == floor(frameRate) {
+            return String(format: "%.0f fps", frameRate)
+        }
+        // 否则显示两位小数
+        return String(format: "%.2f fps", frameRate)
     }
     
     // Lazy load video data (only load when needed)
