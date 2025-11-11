@@ -28,10 +28,13 @@ enum ResizeMode: String, CaseIterable, Identifiable {
 
 // MARK: - Image Resolution
 enum ImageResolution: String, CaseIterable, Identifiable {
-    case wallpaper4K = "3840×2160(4K)"
-    case wallpaper2K = "2560×1440(2K)"
-    case wallpaperHD = "1920×1080"
-    case videoCover720p = "1280×720"
+    case wallpaper4K = "3840×2160 (4K Landscape)"
+    case wallpaper4KPortrait = "2160×3840 (4K Portrait)"
+    case wallpaper2K = "2560×1440 (2K Landscape)"
+    case wallpaper2KPortrait = "1440×2560 (2K Portrait)"
+    case wallpaperHD = "1920×1080 (HD Landscape)"
+    case videoCover720p = "1280×720 (720p Landscape)"
+    case videoCover720pPortrait = "720×1280 (720p Portrait)"
     case phoneWallpaperMax = "1242×2688"
     case phoneWallpaper = "1080×1920"
     case socialVertical = "1080×1350"
@@ -43,9 +46,12 @@ enum ImageResolution: String, CaseIterable, Identifiable {
     var size: (width: Int, height: Int)? {
         switch self {
         case .wallpaper4K: return (3840, 2160)
+        case .wallpaper4KPortrait: return (2160, 3840)
         case .wallpaper2K: return (2560, 1440)
+        case .wallpaper2KPortrait: return (1440, 2560)
         case .wallpaperHD: return (1920, 1080)
         case .videoCover720p: return (1280, 720)
+        case .videoCover720pPortrait: return (720, 1280)
         case .phoneWallpaperMax: return (1242, 2688)
         case .phoneWallpaper: return (1080, 1920)
         case .socialVertical: return (1080, 1350)
