@@ -548,6 +548,13 @@ struct ResolutionView: View {
             print("Failed to load video track info: \(error)")
         }
         
+        // 检测视频编码
+        if let codec = MediaItem.detectVideoCodec(from: url) {
+            await MainActor.run {
+                mediaItem.videoCodec = codec
+            }
+        }
+        
         // 异步生成缩略图
         await generateVideoThumbnailOptimized(for: mediaItem, url: url)
         
@@ -861,7 +868,31 @@ struct ResolutionView: View {
         }
         
         let asset = AVURLAsset(url: sourceURL)
-        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
+        
+        // 检测原始视频编码格式
+        var isHEVC = false
+        if let videoTrack = asset.tracks(withMediaType: .video).first {
+            let formatDescriptions = videoTrack.formatDescriptions as! [CMFormatDescription]
+            if let formatDescription = formatDescriptions.first {
+                let codecType = CMFormatDescriptionGetMediaSubType(formatDescription)
+                // HEVC codec type is 'hvc1' or 'hev1'
+                isHEVC = (codecType == kCMVideoCodecType_HEVC || 
+                         codecType == kCMVideoCodecType_HEVCWithAlpha)
+                print("🎬 [Resolution Adjustment] Detected codec: \(isHEVC ? "HEVC" : "H.264")")
+            }
+        }
+        
+        // 根据原始编码选择合适的预设
+        let presetName: String
+        if isHEVC && AVAssetExportSession.allExportPresets().contains(AVAssetExportPresetHEVCHighestQuality) {
+            presetName = AVAssetExportPresetHEVCHighestQuality
+            print("🎬 [Resolution Adjustment] Using HEVC preset to maintain original codec")
+        } else {
+            presetName = AVAssetExportPresetHighestQuality
+            print("🎬 [Resolution Adjustment] Using H.264 preset to maintain original codec")
+        }
+        
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: presetName) else {
             await MainActor.run {
                 item.status = .failed
                 item.errorMessage = "Unable to create export session"
@@ -907,6 +938,11 @@ struct ResolutionView: View {
                     let transform = videoTrack.preferredTransform
                     let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
                     item.compressedResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
+                }
+                
+                // 检测调整后的视频编码
+                if let codec = MediaItem.detectVideoCodec(from: outputURL) {
+                    item.compressedVideoCodec = codec
                 }
                 
                 item.status = .completed

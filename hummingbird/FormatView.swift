@@ -471,6 +471,13 @@ struct FormatView: View {
             print("Failed to load video track info: \(error)")
         }
         
+        // 检测视频编码
+        if let codec = MediaItem.detectVideoCodec(from: url) {
+            await MainActor.run {
+                mediaItem.videoCodec = codec
+            }
+        }
+        
         // 异步生成缩略图
         await generateVideoThumbnailOptimized(for: mediaItem, url: url)
         
@@ -975,6 +982,11 @@ struct FormatView: View {
                     let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
                     item.compressedResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
                     print("[convertVideo] 输出分辨率: \(item.compressedResolution!)")
+                }
+                
+                // 检测转换后的视频编码
+                if let codec = MediaItem.detectVideoCodec(from: outputURL) {
+                    item.compressedVideoCodec = codec
                 }
                 
                 item.outputVideoFormat = fileExtension

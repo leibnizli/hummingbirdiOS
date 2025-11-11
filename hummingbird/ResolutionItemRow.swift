@@ -67,11 +67,28 @@ struct ResolutionItemRow: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             
-                            // Show video duration (video only)
+                            // Show video duration and codec (video only)
                             if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                
+                                // Show codec change
+                                if let originalCodec = item.videoCodec, let compressedCodec = item.compressedVideoCodec {
+                                    if originalCodec != compressedCodec {
+                                        Text("Codec: \(originalCodec) → \(compressedCodec)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("Codec: \(originalCodec)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } else if let codec = item.videoCodec {
+                                    Text("Codec: \(codec)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     } else {
@@ -84,11 +101,18 @@ struct ResolutionItemRow: View {
                             Text("Size: \(item.formatBytes(item.originalSize))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            // Show video duration (video only)
+                            // Show video duration and codec (video only)
                             if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                
+                                // Show codec
+                                if let codec = item.videoCodec {
+                                    Text("Codec: \(codec)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }

@@ -110,7 +110,7 @@ struct CompressionItemRow: View {
                                     .foregroundStyle(.secondary)
                             }
                             
-                            // 显示视频时长和帧率（仅视频）
+                            // 显示视频时长、帧率和编码（仅视频）
                             if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
                                     .font(.caption)
@@ -130,6 +130,23 @@ struct CompressionItemRow: View {
                                     }
                                 } else {
                                     Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                
+                                // 显示编码变化
+                                if let originalCodec = item.videoCodec, let compressedCodec = item.compressedVideoCodec {
+                                    if originalCodec != compressedCodec {
+                                        Text("Codec: \(originalCodec) → \(compressedCodec)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("Codec: \(originalCodec)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } else if let codec = item.videoCodec {
+                                    Text("Codec: \(codec)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -155,7 +172,7 @@ struct CompressionItemRow: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                            // 显示视频时长和帧率（仅视频）
+                            // 显示视频时长、帧率和编码（仅视频）
                             if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
                                     .font(.caption)
@@ -175,6 +192,13 @@ struct CompressionItemRow: View {
                                     }
                                 } else {
                                     Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                
+                                // 显示编码
+                                if let codec = item.videoCodec {
+                                    Text("Codec: \(codec)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

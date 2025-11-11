@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import PhotosUI
 import Combine
+import AVFoundation
 
 enum CompressionStatus {
     case loading      // Loading
@@ -47,6 +48,12 @@ class MediaItem: Identifiable, ObservableObject {
     
     // Compressed video frame rate (fps, video only)
     @Published var compressedFrameRate: Double?
+    
+    // Video codec (e.g., "HEVC", "H.264")
+    @Published var videoCodec: String?
+    
+    // Compressed video codec
+    @Published var compressedVideoCodec: String?
     
     // Original image format (detected from PhotosPickerItem)
     var originalImageFormat: ImageFormat?
@@ -115,6 +122,40 @@ class MediaItem: Identifiable, ObservableObject {
         }
         // 否则显示两位小数
         return String(format: "%.2f fps", frameRate)
+    }
+    
+    // Detect video codec from URL
+    static func detectVideoCodec(from url: URL) -> String? {
+        let asset = AVURLAsset(url: url)
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+            return nil
+        }
+        
+        let formatDescriptions = videoTrack.formatDescriptions as! [CMFormatDescription]
+        guard let formatDescription = formatDescriptions.first else {
+            return nil
+        }
+        
+        let codecType = CMFormatDescriptionGetMediaSubType(formatDescription)
+        
+        // Check codec type
+        if codecType == kCMVideoCodecType_HEVC || codecType == kCMVideoCodecType_HEVCWithAlpha {
+            return "HEVC"
+        } else if codecType == kCMVideoCodecType_H264 {
+            return "H.264"
+        } else if codecType == kCMVideoCodecType_MPEG4Video {
+            return "MPEG-4"
+        } else if codecType == kCMVideoCodecType_VP9 {
+            return "VP9"
+        } else {
+            // Return codec as FourCC string
+            let fourCC = String(format: "%c%c%c%c",
+                              (codecType >> 24) & 0xff,
+                              (codecType >> 16) & 0xff,
+                              (codecType >> 8) & 0xff,
+                              codecType & 0xff)
+            return fourCC
+        }
     }
     
     // Lazy load video data (only load when needed)

@@ -472,6 +472,13 @@ struct CompressionView: View {
             print("Failed to load video track info: \(error)")
         }
         
+        // 检测视频编码
+        if let codec = MediaItem.detectVideoCodec(from: url) {
+            await MainActor.run {
+                mediaItem.videoCodec = codec
+            }
+        }
+        
         // 异步生成缩略图
         await generateVideoThumbnailOptimized(for: mediaItem, url: url)
         
@@ -743,6 +750,7 @@ struct CompressionView: View {
                                             item.compressedSize = finalSize
                                             item.compressedResolution = item.originalResolution
                                             item.compressedFrameRate = item.frameRate  // remux 保持原始帧率
+                                            item.compressedVideoCodec = item.videoCodec  // remux 保持原始编码
                                             print("✅ [remux] Original video remuxed to \(desiredExt), size: \(finalSize) bytes")
                                         case .failure:
                                             // remux 失败，退回到原始文件
@@ -750,6 +758,7 @@ struct CompressionView: View {
                                             item.compressedSize = item.originalSize
                                             item.compressedResolution = item.originalResolution
                                             item.compressedFrameRate = item.frameRate  // 保持原始帧率
+                                            item.compressedVideoCodec = item.videoCodec  // 保持原始编码
                                             print("⚠️ [remux] Failed, falling back to original video")
                                         }
                                     }
@@ -760,6 +769,7 @@ struct CompressionView: View {
                                 item.compressedSize = item.originalSize
                                 item.compressedResolution = item.originalResolution
                                 item.compressedFrameRate = item.frameRate  // 保持原始帧率
+                                item.compressedVideoCodec = item.videoCodec  // 保持原始编码
                             }
 
                             // 清理压缩后的临时文件（因为没使用它）
@@ -771,7 +781,7 @@ struct CompressionView: View {
                             item.compressedVideoURL = url
                             item.compressedSize = compressedSize
 
-                            // 获取压缩后的视频信息（分辨率和帧率）
+                            // 获取压缩后的视频信息（分辨率、帧率和编码）
                             Task {
                                 let asset = AVURLAsset(url: url)
                                 do {
@@ -789,6 +799,13 @@ struct CompressionView: View {
                                     }
                                 } catch {
                                     print("Failed to load compressed video info: \(error)")
+                                }
+                                
+                                // 检测压缩后的编码
+                                if let codec = MediaItem.detectVideoCodec(from: url) {
+                                    await MainActor.run {
+                                        item.compressedVideoCodec = codec
+                                    }
                                 }
                             }
                         }
