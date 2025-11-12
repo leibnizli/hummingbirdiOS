@@ -36,9 +36,6 @@ enum ImageResolution: String, CaseIterable, Identifiable {
     case phoneWallpaper = "1080×1920 (HD Portrait)"
     case videoCover720p = "1280×720 (720p Landscape)"
     case videoCover720pPortrait = "720×1280 (720p Portrait)"
-    case phoneWallpaperMax = "1242×2688"
-    case socialVertical = "1080×1350"
-    case socialSquare = "1080×1080"
     case custom = "Custom"
     
     var id: String { rawValue }
@@ -52,10 +49,7 @@ enum ImageResolution: String, CaseIterable, Identifiable {
         case .wallpaperHD: return (1920, 1080)
         case .videoCover720p: return (1280, 720)
         case .videoCover720pPortrait: return (720, 1280)
-        case .phoneWallpaperMax: return (1242, 2688)
         case .phoneWallpaper: return (1080, 1920)
-        case .socialVertical: return (1080, 1350)
-        case .socialSquare: return (1080, 1080)
         case .custom: return nil
         }
     }
