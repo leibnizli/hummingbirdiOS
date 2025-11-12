@@ -260,11 +260,27 @@ struct FormatItemRow: View {
             let containerType = videoURL.pathExtension.lowercased()
             print("[FormatItemRow] 视频信息: 编码=\(codecInfo), 容器=\(containerType)")
             
+            // 确定输出格式和文件类型
+            let outputExtension: String
+            let outputFileType: AVFileType
+            
+            switch containerType {
+            case "m4v":
+                outputExtension = "m4v"
+                outputFileType = .m4v
+            case "mov":
+                outputExtension = "mov"
+                outputFileType = .mov
+            default:
+                outputExtension = "mp4"
+                outputFileType = .mp4
+            }
+            
             // 使用 AVAssetExportSession 重新导出为相册兼容格式
             let compatibleURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                .appendingPathComponent("save_\(UUID().uuidString).mov")
+                .appendingPathComponent("save_\(UUID().uuidString).\(outputExtension)")
             
-            print("[FormatItemRow] 使用 AVAssetExportSession 导出兼容格式")
+            print("[FormatItemRow] 使用 AVAssetExportSession 导出兼容格式: \(outputExtension)")
             
             guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else {
                 print("❌ [FormatItemRow] 无法创建导出会话")
@@ -273,7 +289,7 @@ struct FormatItemRow: View {
             }
             
             exportSession.outputURL = compatibleURL
-            exportSession.outputFileType = .mov
+            exportSession.outputFileType = outputFileType
             exportSession.shouldOptimizeForNetworkUse = true
             
             // 异步等待导出完成

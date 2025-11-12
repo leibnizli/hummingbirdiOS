@@ -155,9 +155,6 @@ struct FormatView: View {
                             Text("HEVC Encoding")
                                 .font(.system(size: 15))
                                 .foregroundStyle(.primary)
-                            Text("Smaller file size, lower compatibility")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Toggle("", isOn: $settings.useHEVC)
@@ -915,7 +912,8 @@ struct FormatView: View {
         print("[convertVideo] 输出 URL: \(outputURL.path)")
         
         // 判断是否只需要容器转换（不需要重新编码）
-        let needsReencoding = (isOriginalHEVC != targetIsHEVC)
+        // M4V 格式比较特殊，建议重新编码以确保兼容性
+        let needsReencoding = (isOriginalHEVC != targetIsHEVC) || (fileExtension.lowercased() == "m4v")
         
         if !needsReencoding {
             // 只需要容器转换，使用 FFmpeg remux（无损、快速）
