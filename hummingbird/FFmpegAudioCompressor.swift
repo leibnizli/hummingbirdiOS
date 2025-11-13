@@ -33,15 +33,22 @@ class FFmpegAudioCompressor {
         
         // 实际使用的参数（不会提升质量）
         let effectiveBitrate: Int
-        if let originalBitrate = originalBitrate, originalBitrate < targetBitrate {
+        if let originalBitrate = originalBitrate, originalBitrate > 0, originalBitrate < targetBitrate {
+            // 原始比特率有效且低于目标，保持原始
             effectiveBitrate = originalBitrate
             print("🎵 [Audio] Original bitrate (\(originalBitrate) kbps) is lower than target (\(targetBitrate) kbps), keeping original")
         } else {
+            // 原始比特率未知、无效(0)、或高于目标，使用目标比特率
+            if originalBitrate == nil || originalBitrate == 0 {
+                print("🎵 [Audio] Original bitrate is unknown or invalid, using target bitrate (\(targetBitrate) kbps)")
+            } else {
+                print("🎵 [Audio] Compressing from \(originalBitrate!) kbps to \(targetBitrate) kbps")
+            }
             effectiveBitrate = targetBitrate
         }
         
         let effectiveSampleRate: Int
-        if let originalSampleRate = originalSampleRate, originalSampleRate < targetSampleRate {
+        if let originalSampleRate = originalSampleRate, originalSampleRate > 0, originalSampleRate < targetSampleRate {
             effectiveSampleRate = originalSampleRate
             print("🎵 [Audio] Original sample rate (\(originalSampleRate) Hz) is lower than target (\(targetSampleRate) Hz), keeping original")
         } else {
@@ -49,7 +56,7 @@ class FFmpegAudioCompressor {
         }
         
         let effectiveChannels: Int
-        if let originalChannels = originalChannels, originalChannels < targetChannels {
+        if let originalChannels = originalChannels, originalChannels > 0, originalChannels < targetChannels {
             effectiveChannels = originalChannels
             print("🎵 [Audio] Original channels (\(originalChannels)) is less than target (\(targetChannels)), keeping original")
         } else {

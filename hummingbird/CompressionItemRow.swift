@@ -149,17 +149,26 @@ struct CompressionItemRow: View {
                                     .foregroundStyle(.secondary)
                                 
                                 // 显示比特率变化
-                                if let originalBitrate = item.audioBitrate, let compressedBitrate = item.compressedAudioBitrate {
-                                    if originalBitrate != compressedBitrate {
-                                        Text("Bitrate: \(item.formatAudioBitrate(originalBitrate)) → \(item.formatAudioBitrate(compressedBitrate))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                if let compressedBitrate = item.compressedAudioBitrate {
+                                    if let originalBitrate = item.audioBitrate {
+                                        // 原始和压缩后都有值
+                                        if originalBitrate != compressedBitrate {
+                                            Text("Bitrate: \(item.formatAudioBitrate(originalBitrate)) → \(item.formatAudioBitrate(compressedBitrate))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Bitrate: \(item.formatAudioBitrate(originalBitrate))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     } else {
-                                        Text("Bitrate: \(item.formatAudioBitrate(originalBitrate))")
+                                        // 原始未知，但压缩后检测到了
+                                        Text("Bitrate: Unknown → \(item.formatAudioBitrate(compressedBitrate))")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
                                 } else {
+                                    // 只显示原始值（或 Unknown）
                                     Text("Bitrate: \(item.formatAudioBitrate(item.audioBitrate))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
