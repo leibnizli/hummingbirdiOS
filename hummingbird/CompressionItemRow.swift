@@ -15,400 +15,424 @@ struct CompressionItemRow: View {
     @State private var showingToast = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                // 预览图
-                ZStack {
-                    // 音频文件使用渐变背景
-                    if item.isAudio {
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.purple.opacity(0.7),
-                                Color.pink.opacity(0.5)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+        VStack(alignment: .leading, spacing: 0) {
+            // 音频播放进度条（仅在播放时显示）
+            if item.isAudio && audioPlayer.isCurrentAudio(itemId: item.id) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // 背景
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
                         
-                        // 音符图标
-                        Image(systemName: "music.note")
-                            .font(.system(size: 36, weight: .medium))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                        
-                        // 播放/暂停按钮
-                        // 优先使用压缩后的音频，如果没有则使用原始音频
-                        if let audioURL = item.compressedVideoURL ?? item.sourceVideoURL {
-                            Button(action: {
-                                audioPlayer.togglePlayPause(itemId: item.id, audioURL: audioURL)
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(.white.opacity(0.75))
-                                        .frame(width: 44, height: 44)
-                                    
-                                    Image(systemName: audioPlayer.isPlaying(itemId: item.id) ? "pause.fill" : "play.fill")
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundStyle(.purple)
-                                        .offset(x: audioPlayer.isPlaying(itemId: item.id) ? 0 : 2)
-                                }
-                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    } else {
-                        Color.gray.opacity(0.2)
-                        
-                        if let thumbnail = item.thumbnailImage {
-                            Image(uiImage: thumbnail)
-                                .resizable()
-                                .scaledToFit()
-                        } else {
-                            Image(systemName: item.isVideo ? "video.fill" : "photo.fill")
-                                .font(.title)
-                                .foregroundStyle(.secondary)
-                        }
+                        // 进度
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.purple, Color.pink]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geometry.size.width * audioPlayer.getProgress(for: item.id))
                     }
                 }
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                
-                // 信息区域
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image(systemName: item.isAudio ? "music.note" : (item.isVideo ? "video.circle.fill" : "photo.circle.fill"))
-                            .foregroundStyle(item.isAudio ? .purple : (item.isVideo ? .blue : .green))
-                        
-                        // 文件格式
-                        if item.status == .completed {
-                            let originalFormat = item.originalImageFormat?.rawValue.uppercased() ?? (item.isVideo ? item.fileExtension.uppercased() : "")
-                            let outputFormat = item.outputImageFormat?.rawValue.uppercased() ?? item.outputVideoFormat?.uppercased() ?? ""
+                .frame(height: 3)
+                .animation(.linear(duration: 0.1), value: audioPlayer.currentTime)
+            }
+            
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    // 预览图
+                    ZStack {
+                        // 音频文件使用渐变背景
+                        if item.isAudio {
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.purple.opacity(0.7),
+                                    Color.pink.opacity(0.5)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                             
-                            if !originalFormat.isEmpty {
-                                if outputFormat.isEmpty || originalFormat == outputFormat {
-                                    // 如果格式没有变化或未指定输出格式，只显示原始格式
-                                    Text(originalFormat)
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.secondary)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.secondary.opacity(0.15))
-                                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                                } else {
-                                    // 如果格式有变化，显示转换过程
-                                    Text(originalFormat)
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.secondary)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.secondary.opacity(0.15))
-                                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                                    Image(systemName: "arrow.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text(outputFormat)
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(.blue)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.blue.opacity(0.15))
-                                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                            // 音符图标
+                            Image(systemName: "music.note")
+                                .font(.system(size: 36, weight: .medium))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                            
+                            // 播放/暂停按钮
+                            // 优先使用压缩后的音频，如果没有则使用原始音频
+                            if let audioURL = item.compressedVideoURL ?? item.sourceVideoURL {
+                                Button(action: {
+                                    audioPlayer.togglePlayPause(itemId: item.id, audioURL: audioURL)
+                                }) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(.white.opacity(0.75))
+                                            .frame(width: 44, height: 44)
+                                        
+                                        Image(systemName: audioPlayer.isPlaying(itemId: item.id) ? "pause.fill" : "play.fill")
+                                            .font(.system(size: 20, weight: .semibold))
+                                            .foregroundStyle(.purple)
+                                            .offset(x: audioPlayer.isPlaying(itemId: item.id) ? 0 : 2)
+                                    }
+                                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                                 }
+                                .buttonStyle(.plain)
                             }
                         } else {
-                            // 未完成时只显示原始格式
-                            if !item.fileExtension.isEmpty {
-                                Text(item.fileExtension.uppercased())
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
+                            Color.gray.opacity(0.2)
+                            
+                            if let thumbnail = item.thumbnailImage {
+                                Image(uiImage: thumbnail)
+                                    .resizable()
+                                    .scaledToFit()
+                            } else {
+                                Image(systemName: item.isVideo ? "video.fill" : "photo.fill")
+                                    .font(.title)
                                     .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.secondary.opacity(0.15))
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
                             }
                         }
-                        
-                        Spacer()
-                        
-                        // 状态标识
-                        statusBadge
                     }
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     
-                    // 文件大小和压缩信息
-                    if item.status == .completed {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Size: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    // 信息区域
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Image(systemName: item.isAudio ? "music.note" : (item.isVideo ? "video.circle.fill" : "photo.circle.fill"))
+                                .foregroundStyle(item.isAudio ? .purple : (item.isVideo ? .blue : .green))
                             
-                            // 显示分辨率变化（仅图片和视频）
-                            if !item.isAudio {
-                                if let originalRes = item.originalResolution, let compressedRes = item.compressedResolution {
-                                    // 判断分辨率是否有变化（允许1像素的误差）
-                                    if abs(originalRes.width - compressedRes.width) > 1 || abs(originalRes.height - compressedRes.height) > 1 {
-                                        Text("Resolution: \(item.formatResolution(originalRes)) → \(item.formatResolution(compressedRes))")
+                            // 文件格式
+                            if item.status == .completed {
+                                let originalFormat = item.originalImageFormat?.rawValue.uppercased() ?? (item.isVideo ? item.fileExtension.uppercased() : "")
+                                let outputFormat = item.outputImageFormat?.rawValue.uppercased() ?? item.outputVideoFormat?.uppercased() ?? ""
+                                
+                                if !originalFormat.isEmpty {
+                                    if outputFormat.isEmpty || originalFormat == outputFormat {
+                                        // 如果格式没有变化或未指定输出格式，只显示原始格式
+                                        Text(originalFormat)
                                             .font(.caption)
+                                            .fontWeight(.semibold)
                                             .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.secondary.opacity(0.15))
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
                                     } else {
-                                        Text("Resolution: \(item.formatResolution(compressedRes))")
+                                        // 如果格式有变化，显示转换过程
+                                        Text(originalFormat)
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.secondary.opacity(0.15))
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        Image(systemName: "arrow.right")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
+                                        Text(outputFormat)
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.blue)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.blue.opacity(0.15))
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                } else if let resolution = item.originalResolution {
-                                    Text("Resolution: \(item.formatResolution(resolution))")
+                                }
+                            } else {
+                                // 未完成时只显示原始格式
+                                if !item.fileExtension.isEmpty {
+                                    Text(item.fileExtension.uppercased())
                                         .font(.caption)
+                                        .fontWeight(.semibold)
                                         .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.secondary.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                             }
                             
-                            // 显示音频参数（仅音频）
-                            if item.isAudio {
-                                Text("Duration: \(item.formatDuration(item.duration))")
+                            Spacer()
+                            
+                            // 状态标识
+                            statusBadge
+                        }
+                        
+                        // 文件大小和压缩信息
+                        if item.status == .completed {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Size: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 
-                                // 显示比特率变化
-                                if let compressedBitrate = item.compressedAudioBitrate {
-                                    if let originalBitrate = item.audioBitrate {
-                                        // 原始和压缩后都有值
-                                        if originalBitrate != compressedBitrate {
-                                            Text("Bitrate: \(item.formatAudioBitrate(originalBitrate)) → \(item.formatAudioBitrate(compressedBitrate))")
+                                // 显示分辨率变化（仅图片和视频）
+                                if !item.isAudio {
+                                    if let originalRes = item.originalResolution, let compressedRes = item.compressedResolution {
+                                        // 判断分辨率是否有变化（允许1像素的误差）
+                                        if abs(originalRes.width - compressedRes.width) > 1 || abs(originalRes.height - compressedRes.height) > 1 {
+                                            Text("Resolution: \(item.formatResolution(originalRes)) → \(item.formatResolution(compressedRes))")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         } else {
-                                            Text("Bitrate: \(item.formatAudioBitrate(originalBitrate))")
+                                            Text("Resolution: \(item.formatResolution(compressedRes))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else if let resolution = item.originalResolution {
+                                        Text("Resolution: \(item.formatResolution(resolution))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                
+                                // 显示音频参数（仅音频）
+                                if item.isAudio {
+                                    Text("Duration: \(item.formatDuration(item.duration))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    // 显示比特率变化
+                                    if let compressedBitrate = item.compressedAudioBitrate {
+                                        if let originalBitrate = item.audioBitrate {
+                                            // 原始和压缩后都有值
+                                            if originalBitrate != compressedBitrate {
+                                                Text("Bitrate: \(item.formatAudioBitrate(originalBitrate)) → \(item.formatAudioBitrate(compressedBitrate))")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            } else {
+                                                Text("Bitrate: \(item.formatAudioBitrate(originalBitrate))")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        } else {
+                                            // 原始未知，但压缩后检测到了
+                                            Text("Bitrate: Unknown → \(item.formatAudioBitrate(compressedBitrate))")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
                                     } else {
-                                        // 原始未知，但压缩后检测到了
-                                        Text("Bitrate: Unknown → \(item.formatAudioBitrate(compressedBitrate))")
+                                        // 只显示原始值（或 Unknown）
+                                        Text("Bitrate: \(item.formatAudioBitrate(item.audioBitrate))")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
-                                } else {
-                                    // 只显示原始值（或 Unknown）
+                                    
+                                    // 显示采样率变化
+                                    if let originalSampleRate = item.audioSampleRate, let compressedSampleRate = item.compressedAudioSampleRate {
+                                        if originalSampleRate != compressedSampleRate {
+                                            Text("Sample Rate: \(item.formatAudioSampleRate(originalSampleRate)) → \(item.formatAudioSampleRate(compressedSampleRate))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Sample Rate: \(item.formatAudioSampleRate(originalSampleRate))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else {
+                                        Text("Sample Rate: \(item.formatAudioSampleRate(item.audioSampleRate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    // 显示声道变化
+                                    if let originalChannels = item.audioChannels, let compressedChannels = item.compressedAudioChannels {
+                                        if originalChannels != compressedChannels {
+                                            Text("Channels: \(item.formatAudioChannels(originalChannels)) → \(item.formatAudioChannels(compressedChannels))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Channels: \(item.formatAudioChannels(originalChannels))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else {
+                                        Text("Channels: \(item.formatAudioChannels(item.audioChannels))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                // 显示视频时长、帧率和编码（仅视频）
+                                else if item.isVideo {
+                                    Text("Duration: \(item.formatDuration(item.duration))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    // 显示帧率变化
+                                    if let originalFPS = item.frameRate, let compressedFPS = item.compressedFrameRate {
+                                        // 判断帧率是否有变化（允许0.1的误差）
+                                        if abs(originalFPS - compressedFPS) > 0.1 {
+                                            Text("Frame Rate: \(item.formatFrameRate(originalFPS)) → \(item.formatFrameRate(compressedFPS))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Frame Rate: \(item.formatFrameRate(originalFPS))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else {
+                                        Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    // 显示编码变化
+                                    if let originalCodec = item.videoCodec, let compressedCodec = item.compressedVideoCodec {
+                                        if originalCodec != compressedCodec {
+                                            Text("Codec: \(originalCodec) → \(compressedCodec)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Codec: \(originalCodec)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else if let codec = item.videoCodec {
+                                        Text("Codec: \(codec)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                
+                                HStack {
+                                    Text("Saved: \(item.formatBytes(item.savedSize))")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                    Spacer()
+                                    Text("Ratio: \(String(format: "%.1f%%", item.compressionRatio * 100))")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Size: \(item.formatBytes(item.originalSize))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                // 显示分辨率（仅图片和视频）
+                                if !item.isAudio, let resolution = item.originalResolution {
+                                    Text("Resolution: \(item.formatResolution(resolution))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                // 显示音频参数（仅音频）
+                                if item.isAudio {
+                                    Text("Duration: \(item.formatDuration(item.duration))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    
                                     Text("Bitrate: \(item.formatAudioBitrate(item.audioBitrate))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                }
-                                
-                                // 显示采样率变化
-                                if let originalSampleRate = item.audioSampleRate, let compressedSampleRate = item.compressedAudioSampleRate {
-                                    if originalSampleRate != compressedSampleRate {
-                                        Text("Sample Rate: \(item.formatAudioSampleRate(originalSampleRate)) → \(item.formatAudioSampleRate(compressedSampleRate))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        Text("Sample Rate: \(item.formatAudioSampleRate(originalSampleRate))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } else {
+                                    
                                     Text("Sample Rate: \(item.formatAudioSampleRate(item.audioSampleRate))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                }
-                                
-                                // 显示声道变化
-                                if let originalChannels = item.audioChannels, let compressedChannels = item.compressedAudioChannels {
-                                    if originalChannels != compressedChannels {
-                                        Text("Channels: \(item.formatAudioChannels(originalChannels)) → \(item.formatAudioChannels(compressedChannels))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        Text("Channels: \(item.formatAudioChannels(originalChannels))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } else {
+                                    
                                     Text("Channels: \(item.formatAudioChannels(item.audioChannels))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                            }
-                            // 显示视频时长、帧率和编码（仅视频）
-                            else if item.isVideo {
-                                Text("Duration: \(item.formatDuration(item.duration))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                // 显示帧率变化
-                                if let originalFPS = item.frameRate, let compressedFPS = item.compressedFrameRate {
-                                    // 判断帧率是否有变化（允许0.1的误差）
-                                    if abs(originalFPS - compressedFPS) > 0.1 {
-                                        Text("Frame Rate: \(item.formatFrameRate(originalFPS)) → \(item.formatFrameRate(compressedFPS))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                // 显示视频时长、帧率和编码（仅视频）
+                                else if item.isVideo {
+                                    Text("Duration: \(item.formatDuration(item.duration))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    // 显示帧率变化
+                                    if let originalFPS = item.frameRate, let compressedFPS = item.compressedFrameRate {
+                                        // 判断帧率是否有变化（允许0.1的误差）
+                                        if abs(originalFPS - compressedFPS) > 0.1 {
+                                            Text("Frame Rate: \(item.formatFrameRate(originalFPS)) → \(item.formatFrameRate(compressedFPS))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Frame Rate: \(item.formatFrameRate(originalFPS))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     } else {
-                                        Text("Frame Rate: \(item.formatFrameRate(originalFPS))")
+                                        Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
-                                } else {
-                                    Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                
-                                // 显示编码变化
-                                if let originalCodec = item.videoCodec, let compressedCodec = item.compressedVideoCodec {
-                                    if originalCodec != compressedCodec {
-                                        Text("Codec: \(originalCodec) → \(compressedCodec)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        Text("Codec: \(originalCodec)")
+                                    
+                                    // 显示编码
+                                    if let codec = item.videoCodec {
+                                        Text("Codec: \(codec)")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
-                                } else if let codec = item.videoCodec {
-                                    Text("Codec: \(codec)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
                                 }
-                            }
-                            
-                            HStack {
-                                Text("Saved: \(item.formatBytes(item.savedSize))")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
-                                Spacer()
-                                Text("Ratio: \(String(format: "%.1f%%", item.compressionRatio * 100))")
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
                             }
                         }
-                    } else {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Size: \(item.formatBytes(item.originalSize))")
+                        
+                        // 进度条
+                        if item.status == .compressing {
+                            ProgressView(value: Double(item.progress))
+                                .tint(.blue)
+                        }
+                        
+                        // 错误信息
+                        if let error = item.errorMessage {
+                            Text(error)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
-                            // 显示分辨率（仅图片和视频）
-                            if !item.isAudio, let resolution = item.originalResolution {
-                                Text("Resolution: \(item.formatResolution(resolution))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            // 显示音频参数（仅音频）
-                            if item.isAudio {
-                                Text("Duration: \(item.formatDuration(item.duration))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                Text("Bitrate: \(item.formatAudioBitrate(item.audioBitrate))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                Text("Sample Rate: \(item.formatAudioSampleRate(item.audioSampleRate))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                Text("Channels: \(item.formatAudioChannels(item.audioChannels))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            // 显示视频时长、帧率和编码（仅视频）
-                            else if item.isVideo {
-                                Text("Duration: \(item.formatDuration(item.duration))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                // 显示帧率变化
-                                if let originalFPS = item.frameRate, let compressedFPS = item.compressedFrameRate {
-                                    // 判断帧率是否有变化（允许0.1的误差）
-                                    if abs(originalFPS - compressedFPS) > 0.1 {
-                                        Text("Frame Rate: \(item.formatFrameRate(originalFPS)) → \(item.formatFrameRate(compressedFPS))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        Text("Frame Rate: \(item.formatFrameRate(originalFPS))")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                } else {
-                                    Text("Frame Rate: \(item.formatFrameRate(item.frameRate))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                
-                                // 显示编码
-                                if let codec = item.videoCodec {
-                                    Text("Codec: \(codec)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
+                                .foregroundStyle(.red)
+                                .lineLimit(2)
                         }
-                    }
-                    
-                    // 进度条
-                    if item.status == .compressing {
-                        ProgressView(value: Double(item.progress))
-                            .tint(.blue)
-                    }
-                    
-                    // 错误信息
-                    if let error = item.errorMessage {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .lineLimit(2)
                     }
                 }
-            }
-            
-            // 保存按钮
-            if item.status == .completed {
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        // Photos 按钮（仅图片和视频）
-                        if !item.isAudio {
-                            Button(action: { saveToPhotos(item) }) {
+                
+                // 保存按钮
+                if item.status == .completed {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            // Photos 按钮（仅图片和视频）
+                            if !item.isAudio {
+                                Button(action: { saveToPhotos(item) }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "photo.badge.arrow.down")
+                                            .font(.caption)
+                                        Text("Photos")
+                                            .font(.caption)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            
+                            Button(action: { saveToICloud(item) }) {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "photo.badge.arrow.down")
+                                    Image(systemName: "icloud.and.arrow.up")
                                         .font(.caption)
-                                    Text("Photos")
+                                    Text("iCloud")
+                                        .font(.caption)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button(action: { shareFile(item) }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.caption)
+                                    Text("Share")
                                         .font(.caption)
                                 }
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.bordered)
                         }
-                        
-                        Button(action: { saveToICloud(item) }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "icloud.and.arrow.up")
-                                    .font(.caption)
-                                Text("iCloud")
-                                    .font(.caption)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        Button(action: { shareFile(item) }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "square.and.arrow.up")
-                                    .font(.caption)
-                                Text("Share")
-                                    .font(.caption)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
                     }
                 }
-            }
+            }.padding(.vertical, 8)
+                .toast(isShowing: $showingToast, message: "Saved Successfully")
         }
-        .padding(.vertical, 8)
-        .toast(isShowing: $showingToast, message: "Saved Successfully")
     }
-    
     @ViewBuilder
     private var statusBadge: some View {
         switch item.status {
@@ -704,3 +728,4 @@ struct CompressionItemRow: View {
         rootViewController.present(activityVC, animated: true)
     }
 }
+

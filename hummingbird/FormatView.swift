@@ -219,6 +219,15 @@ struct FormatView: View {
                         .onDelete { indexSet in
                             // 只有在不转换且没有加载项时才允许删除
                             guard !isConverting && !hasLoadingItems else { return }
+                            
+                            // 检查是否删除了正在播放的音频
+                            for index in indexSet {
+                                let item = mediaItems[index]
+                                if item.isAudio && AudioPlayerManager.shared.isCurrentAudio(itemId: item.id) {
+                                    AudioPlayerManager.shared.stop()
+                                }
+                            }
+                            
                             withAnimation {
                                 mediaItems.remove(atOffsets: indexSet)
                             }
@@ -260,6 +269,11 @@ struct FormatView: View {
     }
     
     private func loadFilesFromURLs(_ urls: [URL]) async {
+        // 停止当前播放
+        await MainActor.run {
+            AudioPlayerManager.shared.stop()
+        }
+        
         await MainActor.run {
             mediaItems.removeAll()
         }
@@ -330,6 +344,11 @@ struct FormatView: View {
     }
     
     private func loadSelectedItems(_ items: [PhotosPickerItem]) async {
+        // 停止当前播放
+        await MainActor.run {
+            AudioPlayerManager.shared.stop()
+        }
+        
         await MainActor.run {
             mediaItems.removeAll()
         }

@@ -16,229 +16,254 @@ struct FormatItemRow: View {
     @State private var toastMessage = ""
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                // Thumbnail
-                ZStack {
-                    // 音频文件使用渐变背景
-                    if item.isAudio {
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.purple.opacity(0.7),
-                                Color.pink.opacity(0.5)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+        VStack(alignment: .leading, spacing: 0) {
+            // 音频播放进度条（仅在播放时显示）
+            if item.isAudio && audioPlayer.isCurrentAudio(itemId: item.id) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // 背景
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
                         
-                        // 音符图标
-                        Image(systemName: "music.note")
-                            .font(.system(size: 36, weight: .medium))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                        
-                        // 播放/暂停按钮
-                        // 优先使用转换后的音频，如果没有则使用原始音频
-                        if let audioURL = item.compressedVideoURL ?? item.sourceVideoURL {
-                            Button(action: {
-                                audioPlayer.togglePlayPause(itemId: item.id, audioURL: audioURL)
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(.white.opacity(0.75))
-                                        .frame(width: 44, height: 44)
-                                    
-                                    Image(systemName: audioPlayer.isPlaying(itemId: item.id) ? "pause.fill" : "play.fill")
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundStyle(.purple)
-                                        .offset(x: audioPlayer.isPlaying(itemId: item.id) ? 0 : 2)
-                                }
-                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    } else {
-                        Color.gray.opacity(0.2)
-                        
-                        if let thumbnail = item.thumbnailImage {
-                            Image(uiImage: thumbnail)
-                                .resizable()
-                                .scaledToFit()
-                        } else {
-                            Image(systemName: item.isVideo ? "video.fill" : "photo.fill")
-                                .font(.title)
-                                .foregroundStyle(.secondary)
-                        }
+                        // 进度
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.purple, Color.pink]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geometry.size.width * audioPlayer.getProgress(for: item.id))
                     }
                 }
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                
-                // Information area
-                VStack(alignment: .leading, spacing: 4) {
-                    // File type and format
-                    HStack(spacing: 6) {
-                        Image(systemName: item.isAudio ? "music.note" : (item.isVideo ? "video.fill" : "photo.fill"))
-                            .font(.caption)
-                            .foregroundStyle(item.isAudio ? .purple : .secondary)
-                        
-                        if item.status == .completed {
-                            // Show format changes
-                            let originalFormatText = item.originalImageFormat?.rawValue.uppercased() ?? (item.isVideo ? item.fileExtension.uppercased() : "")
-                            let outputFormatText = item.outputImageFormat?.rawValue.uppercased() ?? item.outputVideoFormat?.uppercased() ?? ""
+                .frame(height: 3)
+                .animation(.linear(duration: 0.1), value: audioPlayer.currentTime)
+            }
+            
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    // Thumbnail
+                    ZStack {
+                        // 音频文件使用渐变背景
+                        if item.isAudio {
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.purple.opacity(0.7),
+                                    Color.pink.opacity(0.5)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                             
-                            if !originalFormatText.isEmpty {
-                                if outputFormatText.isEmpty || originalFormatText == outputFormatText {
-                                    // If format hasn't changed, only show original format
-                                    Text(originalFormatText)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    // If format has changed, show before and after formats
-                                    Text(originalFormatText)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Image(systemName: "arrow.right")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Text(outputFormatText)
-                                        .font(.caption)
-                                        .foregroundStyle(.blue)
+                            // 音符图标
+                            Image(systemName: "music.note")
+                                .font(.system(size: 36, weight: .medium))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                            
+                            // 播放/暂停按钮
+                            // 优先使用转换后的音频，如果没有则使用原始音频
+                            if let audioURL = item.compressedVideoURL ?? item.sourceVideoURL {
+                                Button(action: {
+                                    audioPlayer.togglePlayPause(itemId: item.id, audioURL: audioURL)
+                                }) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(.white.opacity(0.75))
+                                            .frame(width: 44, height: 44)
+                                        
+                                        Image(systemName: audioPlayer.isPlaying(itemId: item.id) ? "pause.fill" : "play.fill")
+                                            .font(.system(size: 20, weight: .semibold))
+                                            .foregroundStyle(.purple)
+                                            .offset(x: audioPlayer.isPlaying(itemId: item.id) ? 0 : 2)
+                                    }
+                                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                                 }
+                                .buttonStyle(.plain)
                             }
                         } else {
-                            // When not completed, only show original format
-                            if let originalFormat = item.originalImageFormat {
-                                Text(originalFormat.rawValue.uppercased())
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else if item.isVideo {
-                                Text(item.fileExtension.uppercased())
-                                    .font(.caption)
+                            Color.gray.opacity(0.2)
+                            
+                            if let thumbnail = item.thumbnailImage {
+                                Image(uiImage: thumbnail)
+                                    .resizable()
+                                    .scaledToFit()
+                            } else {
+                                Image(systemName: item.isVideo ? "video.fill" : "photo.fill")
+                                    .font(.title)
                                     .foregroundStyle(.secondary)
                             }
                         }
                     }
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     
-                    // Size information
-                    if item.status == .completed {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Text("Size: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    // Information area
+                    VStack(alignment: .leading, spacing: 4) {
+                        // File type and format
+                        HStack(spacing: 6) {
+                            Image(systemName: item.isAudio ? "music.note" : (item.isVideo ? "video.fill" : "photo.fill"))
+                                .font(.caption)
+                                .foregroundStyle(item.isAudio ? .purple : .secondary)
+                            
+                            if item.status == .completed {
+                                // Show format changes
+                                let originalFormatText = item.originalImageFormat?.rawValue.uppercased() ?? (item.isVideo ? item.fileExtension.uppercased() : "")
+                                let outputFormatText = item.outputImageFormat?.rawValue.uppercased() ?? item.outputVideoFormat?.uppercased() ?? ""
                                 
-                                let diff = item.compressedSize - item.originalSize
-                                if diff > 0 {
-                                    Text("(+\(item.formatBytes(diff)))")
-                                        .font(.caption)
-                                        .foregroundStyle(.orange)
-                                } else if diff < 0 {
-                                    Text("(\(item.formatBytes(diff)))")
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
-                                }
-                            }
-                            // Show video duration and codec (video only)
-                            if item.isVideo {
-                                Text("Duration: \(item.formatDuration(item.duration))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                // Show codec change
-                                if let originalCodec = item.videoCodec, let compressedCodec = item.compressedVideoCodec {
-                                    if originalCodec != compressedCodec {
-                                        Text("Codec: \(originalCodec) → \(compressedCodec)")
+                                if !originalFormatText.isEmpty {
+                                    if outputFormatText.isEmpty || originalFormatText == outputFormatText {
+                                        // If format hasn't changed, only show original format
+                                        Text(originalFormatText)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     } else {
-                                        Text("Codec: \(originalCodec)")
+                                        // If format has changed, show before and after formats
+                                        Text(originalFormatText)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Image(systemName: "arrow.right")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Text(outputFormatText)
+                                            .font(.caption)
+                                            .foregroundStyle(.blue)
+                                    }
+                                }
+                            } else {
+                                // When not completed, only show original format
+                                if let originalFormat = item.originalImageFormat {
+                                    Text(originalFormat.rawValue.uppercased())
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else if item.isVideo {
+                                    Text(item.fileExtension.uppercased())
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        
+                        // Size information
+                        if item.status == .completed {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Text("Size: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    let diff = item.compressedSize - item.originalSize
+                                    if diff > 0 {
+                                        Text("(+\(item.formatBytes(diff)))")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    } else if diff < 0 {
+                                        Text("(\(item.formatBytes(diff)))")
+                                            .font(.caption)
+                                            .foregroundStyle(.green)
+                                    }
+                                }
+                                // Show video duration and codec (video only)
+                                if item.isVideo {
+                                    Text("Duration: \(item.formatDuration(item.duration))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    
+                                    // Show codec change
+                                    if let originalCodec = item.videoCodec, let compressedCodec = item.compressedVideoCodec {
+                                        if originalCodec != compressedCodec {
+                                            Text("Codec: \(originalCodec) → \(compressedCodec)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Codec: \(originalCodec)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else if let codec = item.videoCodec {
+                                        Text("Codec: \(codec)")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
-                                } else if let codec = item.videoCodec {
-                                    Text("Codec: \(codec)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
                                 }
                             }
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Size: \(item.formatBytes(item.originalSize))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            // Show video duration and codec (video only)
-                            if item.isVideo {
-                                Text("Duration: \(item.formatDuration(item.duration))")
+                        } else {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Size: \(item.formatBytes(item.originalSize))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                
-                                // Show codec
-                                if let codec = item.videoCodec {
-                                    Text("Codec: \(codec)")
+                                // Show video duration and codec (video only)
+                                if item.isVideo {
+                                    Text("Duration: \(item.formatDuration(item.duration))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    
+                                    // Show codec
+                                    if let codec = item.videoCodec {
+                                        Text("Codec: \(codec)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                         }
+                        
+                        // Status information
+                        statusView
                     }
+                }
+                
+                // Save buttons
+                if item.status == .completed {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                Task { await saveToPhotos() }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "photo.badge.arrow.down")
+                                        .font(.caption)
+                                    Text("Photos")
+                                        .font(.caption)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button(action: {
+                                Task { await saveToICloud() }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "icloud.and.arrow.up")
+                                        .font(.caption)
+                                    Text("iCloud")
+                                        .font(.caption)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button(action: {
+                                Task { await shareFile() }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.caption)
+                                    Text("Share")
+                                        .font(.caption)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }.padding(.vertical, 8)
+                }
                     
-                    // Status information
-                    statusView
-                }
             }
-            
-            // Save buttons
-            if item.status == .completed {
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        Button(action: { 
-                            Task { await saveToPhotos() }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "photo.badge.arrow.down")
-                                    .font(.caption)
-                                Text("Photos")
-                                    .font(.caption)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        Button(action: { 
-                            Task { await saveToICloud() }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "icloud.and.arrow.up")
-                                    .font(.caption)
-                                Text("iCloud")
-                                    .font(.caption)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        Button(action: { 
-                            Task { await shareFile() }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "square.and.arrow.up")
-                                    .font(.caption)
-                                Text("Share")
-                                    .font(.caption)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-            }
+            .toast(isShowing: $showingToast, message: toastMessage)
         }
-        .padding(.vertical, 8)
-        .toast(isShowing: $showingToast, message: toastMessage)
     }
-    
     @ViewBuilder
     private var statusView: some View {
         switch item.status {

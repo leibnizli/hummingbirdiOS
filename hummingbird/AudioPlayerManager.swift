@@ -121,6 +121,19 @@ class AudioPlayerManager: NSObject, ObservableObject {
     func isPlaying(itemId: UUID) -> Bool {
         return currentPlayingItemId == itemId && isPlaying
     }
+    
+    // 获取播放进度（0.0 到 1.0）
+    func getProgress(for itemId: UUID) -> Double {
+        guard currentPlayingItemId == itemId, duration > 0 else {
+            return 0
+        }
+        return currentTime / duration
+    }
+    
+    // 检查某个音频是否是当前音频（播放中或暂停）
+    func isCurrentAudio(itemId: UUID) -> Bool {
+        return currentPlayingItemId == itemId
+    }
 }
 
 // MARK: - AVAudioPlayerDelegate

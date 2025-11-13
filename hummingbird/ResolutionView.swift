@@ -211,6 +211,15 @@ struct ResolutionView: View {
                         .onDelete { indexSet in
                             // 只有在不处理且没有加载项时才允许删除
                             guard !isProcessing && !hasLoadingItems else { return }
+                            
+                            // 检查是否删除了正在播放的音频
+                            for index in indexSet {
+                                let item = mediaItems[index]
+                                if item.isAudio && AudioPlayerManager.shared.isCurrentAudio(itemId: item.id) {
+                                    AudioPlayerManager.shared.stop()
+                                }
+                            }
+                            
                             withAnimation {
                                 mediaItems.remove(atOffsets: indexSet)
                             }
@@ -254,6 +263,11 @@ struct ResolutionView: View {
     
     // 从文件选择器加载文件（iCloud）
     private func loadFileURLs(_ urls: [URL]) async {
+        // 停止当前播放
+        await MainActor.run {
+            AudioPlayerManager.shared.stop()
+        }
+        
         // 清空之前的列表
         await MainActor.run {
             mediaItems.removeAll()
@@ -342,6 +356,11 @@ struct ResolutionView: View {
     
     // 从相册选择
     private func loadSelectedItems(_ items: [PhotosPickerItem]) async {
+        // 停止当前播放
+        await MainActor.run {
+            AudioPlayerManager.shared.stop()
+        }
+        
         await MainActor.run {
             mediaItems.removeAll()
         }
