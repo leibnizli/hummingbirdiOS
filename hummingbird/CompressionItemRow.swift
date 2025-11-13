@@ -35,8 +35,8 @@ struct CompressionItemRow: View {
                 // 信息区域
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Image(systemName: item.isVideo ? "video.circle.fill" : "photo.circle.fill")
-                            .foregroundStyle(item.isVideo ? .blue : .green)
+                        Image(systemName: item.isAudio ? "music.note" : (item.isVideo ? "video.circle.fill" : "photo.circle.fill"))
+                            .foregroundStyle(item.isAudio ? .purple : (item.isVideo ? .blue : .green))
                         
                         // 文件格式
                         if item.status == .completed {
@@ -104,26 +104,85 @@ struct CompressionItemRow: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             
-                            // 显示分辨率变化
-                            if let originalRes = item.originalResolution, let compressedRes = item.compressedResolution {
-                                // 判断分辨率是否有变化（允许1像素的误差）
-                                if abs(originalRes.width - compressedRes.width) > 1 || abs(originalRes.height - compressedRes.height) > 1 {
-                                    Text("Resolution: \(item.formatResolution(originalRes)) → \(item.formatResolution(compressedRes))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Text("Resolution: \(item.formatResolution(compressedRes))")
+                            // 显示分辨率变化（仅图片和视频）
+                            if !item.isAudio {
+                                if let originalRes = item.originalResolution, let compressedRes = item.compressedResolution {
+                                    // 判断分辨率是否有变化（允许1像素的误差）
+                                    if abs(originalRes.width - compressedRes.width) > 1 || abs(originalRes.height - compressedRes.height) > 1 {
+                                        Text("Resolution: \(item.formatResolution(originalRes)) → \(item.formatResolution(compressedRes))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("Resolution: \(item.formatResolution(compressedRes))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } else if let resolution = item.originalResolution {
+                                    Text("Resolution: \(item.formatResolution(resolution))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                            } else if let resolution = item.originalResolution {
-                                Text("Resolution: \(item.formatResolution(resolution))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
                             
+                            // 显示音频参数（仅音频）
+                            if item.isAudio {
+                                Text("Duration: \(item.formatDuration(item.duration))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                // 显示比特率变化
+                                if let originalBitrate = item.audioBitrate, let compressedBitrate = item.compressedAudioBitrate {
+                                    if originalBitrate != compressedBitrate {
+                                        Text("Bitrate: \(item.formatAudioBitrate(originalBitrate)) → \(item.formatAudioBitrate(compressedBitrate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("Bitrate: \(item.formatAudioBitrate(originalBitrate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } else {
+                                    Text("Bitrate: \(item.formatAudioBitrate(item.audioBitrate))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                
+                                // 显示采样率变化
+                                if let originalSampleRate = item.audioSampleRate, let compressedSampleRate = item.compressedAudioSampleRate {
+                                    if originalSampleRate != compressedSampleRate {
+                                        Text("Sample Rate: \(item.formatAudioSampleRate(originalSampleRate)) → \(item.formatAudioSampleRate(compressedSampleRate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("Sample Rate: \(item.formatAudioSampleRate(originalSampleRate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } else {
+                                    Text("Sample Rate: \(item.formatAudioSampleRate(item.audioSampleRate))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                
+                                // 显示声道变化
+                                if let originalChannels = item.audioChannels, let compressedChannels = item.compressedAudioChannels {
+                                    if originalChannels != compressedChannels {
+                                        Text("Channels: \(item.formatAudioChannels(originalChannels)) → \(item.formatAudioChannels(compressedChannels))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("Channels: \(item.formatAudioChannels(originalChannels))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                } else {
+                                    Text("Channels: \(item.formatAudioChannels(item.audioChannels))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                             // 显示视频时长、帧率和编码（仅视频）
-                            if item.isVideo {
+                            else if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -179,13 +238,32 @@ struct CompressionItemRow: View {
                             Text("Size: \(item.formatBytes(item.originalSize))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            if let resolution = item.originalResolution {
+                            // 显示分辨率（仅图片和视频）
+                            if !item.isAudio, let resolution = item.originalResolution {
                                 Text("Resolution: \(item.formatResolution(resolution))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            // 显示音频参数（仅音频）
+                            if item.isAudio {
+                                Text("Duration: \(item.formatDuration(item.duration))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("Bitrate: \(item.formatAudioBitrate(item.audioBitrate))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("Sample Rate: \(item.formatAudioSampleRate(item.audioSampleRate))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("Channels: \(item.formatAudioChannels(item.audioChannels))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                             // 显示视频时长、帧率和编码（仅视频）
-                            if item.isVideo {
+                            else if item.isVideo {
                                 Text("Duration: \(item.formatDuration(item.duration))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -238,16 +316,19 @@ struct CompressionItemRow: View {
             if item.status == .completed {
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
-                        Button(action: { saveToPhotos(item) }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "photo.badge.arrow.down")
-                                    .font(.caption)
-                                Text("Photos")
-                                    .font(.caption)
+                        // Photos 按钮（仅图片和视频）
+                        if !item.isAudio {
+                            Button(action: { saveToPhotos(item) }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "photo.badge.arrow.down")
+                                        .font(.caption)
+                                    Text("Photos")
+                                        .font(.caption)
+                                }
+                                .frame(maxWidth: .infinity)
                             }
-                            .frame(maxWidth: .infinity)
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                         
                         Button(action: { saveToICloud(item) }) {
                             HStack(spacing: 4) {
@@ -343,7 +424,12 @@ struct CompressionItemRow: View {
             
             do {
                 try await PHPhotoLibrary.shared().performChanges {
-                    if item.isVideo, let url = item.compressedVideoURL {
+                    if item.isAudio {
+                        // 音频文件不能直接保存到相册，这个分支不应该被执行到
+                        // 因为音频文件不显示 Photos 按钮
+                        print("⚠️ Audio files cannot be saved to Photos, please use iCloud or Share")
+                        return
+                    } else if item.isVideo, let url = item.compressedVideoURL {
                         // 检查文件是否存在
                         guard FileManager.default.fileExists(atPath: url.path) else {
                             print("❌ 视频文件不存在: \(url.path)")
@@ -416,7 +502,9 @@ struct CompressionItemRow: View {
         // 准备临时文件
         var fileURL: URL?
         
-        if item.isVideo, let url = item.compressedVideoURL {
+        if item.isAudio, let url = item.compressedVideoURL {
+            fileURL = url
+        } else if item.isVideo, let url = item.compressedVideoURL {
             fileURL = url
         } else if let data = item.compressedData {
             let fileExtension: String
@@ -504,7 +592,9 @@ struct CompressionItemRow: View {
         
         var itemsToShare: [Any] = []
         
-        if item.isVideo, let url = item.compressedVideoURL {
+        if item.isAudio, let url = item.compressedVideoURL {
+            itemsToShare.append(url)
+        } else if item.isVideo, let url = item.compressedVideoURL {
             itemsToShare.append(url)
         } else if let data = item.compressedData {
             let fileExtension: String

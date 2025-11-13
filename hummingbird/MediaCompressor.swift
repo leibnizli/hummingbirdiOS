@@ -20,6 +20,33 @@ enum ImageFormat: String, CaseIterable, Identifiable {
 }
 
 final class MediaCompressor {
+    
+    // Compress audio file
+    static func compressAudio(
+        at sourceURL: URL,
+        settings: CompressionSettings,
+        originalBitrate: Int?,
+        originalSampleRate: Int?,
+        originalChannels: Int?,
+        progressHandler: @escaping (Float) -> Void,
+        completion: @escaping (Result<URL, Error>) -> Void
+    ) {
+        let outputURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("compressed_\(UUID().uuidString)")
+            .appendingPathExtension("mp3")
+        
+        FFmpegAudioCompressor.compressAudio(
+            inputURL: sourceURL,
+            outputURL: outputURL,
+            settings: settings,
+            originalBitrate: originalBitrate,
+            originalSampleRate: originalSampleRate,
+            originalChannels: originalChannels,
+            progressHandler: progressHandler,
+            completion: completion
+        )
+    }
+    
     static func compressImage(
         _ data: Data,
         settings: CompressionSettings,

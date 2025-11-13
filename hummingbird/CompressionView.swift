@@ -144,7 +144,7 @@ struct CompressionView: View {
         .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedItems, maxSelectionCount: 20, matching: .any(of: [.images, .videos]))
         .fileImporter(
             isPresented: $showingFilePicker,
-            allowedContentTypes: [.image, .movie],
+            allowedContentTypes: [.image, .movie, .audio],
             allowsMultipleSelection: true
         ) { result in
             Task {
@@ -170,7 +170,10 @@ struct CompressionView: View {
             defer { url.stopAccessingSecurityScopedResource() }
             
             // 检查文件类型
-            let isVideo = UTType(filenameExtension: url.pathExtension)?.conforms(to: .movie) ?? false
+            let fileExtension = url.pathExtension.lowercased()
+            let audioExtensions = ["mp3", "m4a", "aac", "wav", "flac", "ogg"]
+            let isAudio = audioExtensions.contains(fileExtension)
+            let isVideo = !isAudio && (UTType(filenameExtension: url.pathExtension)?.conforms(to: .movie) ?? false)
             let mediaItem = MediaItem(pickerItem: nil, isVideo: isVideo)
             
             // 添加到列表
@@ -213,15 +216,30 @@ struct CompressionView: View {
                     }
                     
                     // 如果是图片，生成缩略图和获取分辨率
-                    if !isVideo, let image = UIImage(data: data) {
+                    if !isVideo && !isAudio, let image = UIImage(data: data) {
                         mediaItem.thumbnailImage = generateThumbnail(from: image)
                         mediaItem.originalResolution = image.size
                         mediaItem.status = .pending
                     }
                 }
                 
+                // 如果是音频，处理音频相关信息
+                if isAudio {
+                    // 创建临时文件
+                    let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                        .appendingPathComponent("source_\(mediaItem.id.uuidString)")
+                        .appendingPathExtension(fileExtension)
+                    try data.write(to: tempURL)
+                    
+                    await MainActor.run {
+                        mediaItem.sourceVideoURL = tempURL  // 复用这个字段存储音频URL
+                    }
+                    
+                    // 加载音频元数据
+                    await loadAudioMetadata(for: mediaItem, url: tempURL)
+                }
                 // 如果是视频，处理视频相关信息
-                if isVideo {
+                else if isVideo {
                     // 创建临时文件，使用检测到的扩展名
                     let detectedExtension = mediaItem.fileExtension ?? url.pathExtension
                     let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -441,6 +459,60 @@ struct CompressionView: View {
         }
     }
     
+    private func loadAudioMetadata(for mediaItem: MediaItem, url: URL) async {
+        let asset = AVURLAsset(url: url)
+        
+        // 加载音频时长
+        do {
+            let duration = try await asset.load(.duration)
+            let durationSeconds = CMTimeGetSeconds(duration)
+            
+            await MainActor.run {
+                mediaItem.duration = durationSeconds
+            }
+            
+            // 加载音频轨道信息
+            let tracks = try await asset.loadTracks(withMediaType: .audio)
+            if let audioTrack = tracks.first {
+                // 获取音频格式描述
+                let formatDescriptions = audioTrack.formatDescriptions as! [CMFormatDescription]
+                if let formatDescription = formatDescriptions.first {
+                    let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)
+                    
+                    if let asbd = audioStreamBasicDescription {
+                        let sampleRate = Int(asbd.pointee.mSampleRate)
+                        let channels = Int(asbd.pointee.mChannelsPerFrame)
+                        
+                        await MainActor.run {
+                            mediaItem.audioSampleRate = sampleRate
+                            mediaItem.audioChannels = channels
+                        }
+                    }
+                }
+                
+                // 尝试估算比特率
+                if let estimatedBitrate = try? await audioTrack.load(.estimatedDataRate) {
+                    let bitrateKbps = Int(estimatedBitrate / 1000)
+                    await MainActor.run {
+                        mediaItem.audioBitrate = bitrateKbps
+                    }
+                }
+            }
+            
+            // 设置音频图标
+            await MainActor.run {
+                mediaItem.thumbnailImage = UIImage(systemName: "music.note")
+                mediaItem.status = .pending
+            }
+        } catch {
+            print("Failed to load audio metadata: \(error)")
+            await MainActor.run {
+                mediaItem.status = .failed
+                mediaItem.errorMessage = "Failed to load audio metadata"
+            }
+        }
+    }
+    
     private func loadVideoMetadata(for mediaItem: MediaItem, url: URL) async {
         let asset = AVURLAsset(url: url)
         
@@ -574,7 +646,9 @@ struct CompressionView: View {
             item.progress = 0
         }
         
-        if item.isVideo {
+        if item.isAudio {
+            await compressAudio(item)
+        } else if item.isVideo {
             await compressVideo(item)
         } else {
             await compressImage(item)
@@ -668,6 +742,108 @@ struct CompressionView: View {
                 item.status = .failed
                 item.errorMessage = error.localizedDescription
             }
+        }
+    }
+    
+    private func compressAudio(_ item: MediaItem) async {
+        // 确保有音频 URL
+        guard let sourceURL = item.sourceVideoURL else {  // 复用这个字段
+            await MainActor.run {
+                item.status = .failed
+                item.errorMessage = "Unable to load original audio"
+            }
+            return
+        }
+        
+        // 使用 continuation 等待压缩完成
+        await withCheckedContinuation { continuation in
+            MediaCompressor.compressAudio(
+                at: sourceURL,
+                settings: settings,
+                originalBitrate: item.audioBitrate,
+                originalSampleRate: item.audioSampleRate,
+                originalChannels: item.audioChannels,
+                progressHandler: { progress in
+                    Task { @MainActor in
+                        item.progress = progress
+                    }
+                },
+                completion: { result in
+                    Task { @MainActor in
+                        switch result {
+                        case .success(let url):
+                            // 获取压缩后的文件大小
+                            let compressedSize: Int
+                            if let data = try? Data(contentsOf: url) {
+                                compressedSize = data.count
+                            } else {
+                                compressedSize = 0
+                            }
+                            
+                            // 智能判断：如果压缩后反而变大，保留原始文件
+                            if compressedSize >= item.originalSize {
+                                print("⚠️ [Audio Compression Check] Compressed size (\(compressedSize) bytes) >= Original size (\(item.originalSize) bytes), keeping original")
+                                
+                                item.compressedVideoURL = sourceURL  // 复用这个字段
+                                item.compressedSize = item.originalSize
+                                item.compressedAudioBitrate = item.audioBitrate
+                                item.compressedAudioSampleRate = item.audioSampleRate
+                                item.compressedAudioChannels = item.audioChannels
+                                
+                                // 清理压缩后的临时文件
+                                try? FileManager.default.removeItem(at: url)
+                            } else {
+                                print("✅ [Audio Compression Check] Compression successful, reduced from \(item.originalSize) bytes to \(compressedSize) bytes")
+                                
+                                item.compressedVideoURL = url  // 复用这个字段
+                                item.compressedSize = compressedSize
+                                
+                                // 获取压缩后的音频信息
+                                Task {
+                                    let asset = AVURLAsset(url: url)
+                                    do {
+                                        let tracks = try await asset.loadTracks(withMediaType: .audio)
+                                        if let audioTrack = tracks.first {
+                                            let formatDescriptions = audioTrack.formatDescriptions as! [CMFormatDescription]
+                                            if let formatDescription = formatDescriptions.first {
+                                                let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)
+                                                
+                                                if let asbd = audioStreamBasicDescription {
+                                                    let sampleRate = Int(asbd.pointee.mSampleRate)
+                                                    let channels = Int(asbd.pointee.mChannelsPerFrame)
+                                                    
+                                                    await MainActor.run {
+                                                        item.compressedAudioSampleRate = sampleRate
+                                                        item.compressedAudioChannels = channels
+                                                    }
+                                                }
+                                            }
+                                            
+                                            if let estimatedBitrate = try? await audioTrack.load(.estimatedDataRate) {
+                                                let bitrateKbps = Int(estimatedBitrate / 1000)
+                                                await MainActor.run {
+                                                    item.compressedAudioBitrate = bitrateKbps
+                                                }
+                                            }
+                                        }
+                                    } catch {
+                                        print("Failed to load compressed audio info: \(error)")
+                                    }
+                                }
+                            }
+                            
+                            item.status = .completed
+                            item.progress = 1.0
+                            
+                        case .failure(let error):
+                            item.status = .failed
+                            item.errorMessage = error.localizedDescription
+                        }
+                        
+                        continuation.resume()
+                    }
+                }
+            )
         }
     }
     

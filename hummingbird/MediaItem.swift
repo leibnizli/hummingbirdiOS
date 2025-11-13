@@ -55,6 +55,22 @@ class MediaItem: Identifiable, ObservableObject {
     // Compressed video codec
     @Published var compressedVideoCodec: String?
     
+    // Audio metadata (for audio files)
+    @Published var audioBitrate: Int?  // kbps
+    @Published var audioSampleRate: Int?  // Hz
+    @Published var audioChannels: Int?  // 1=mono, 2=stereo
+    
+    // Compressed audio metadata
+    @Published var compressedAudioBitrate: Int?
+    @Published var compressedAudioSampleRate: Int?
+    @Published var compressedAudioChannels: Int?
+    
+    // Is this an audio file?
+    var isAudio: Bool {
+        let audioExtensions = ["mp3", "m4a", "aac", "wav", "flac", "ogg"]
+        return audioExtensions.contains(fileExtension.lowercased())
+    }
+    
     // Original image format (detected from PhotosPickerItem)
     var originalImageFormat: ImageFormat?
     
@@ -122,6 +138,29 @@ class MediaItem: Identifiable, ObservableObject {
         }
         // 否则显示两位小数
         return String(format: "%.2f fps", frameRate)
+    }
+    
+    // Format audio bitrate
+    func formatAudioBitrate(_ bitrate: Int?) -> String {
+        guard let bitrate = bitrate, bitrate > 0 else { return "Unknown" }
+        return "\(bitrate) kbps"
+    }
+    
+    // Format audio sample rate
+    func formatAudioSampleRate(_ sampleRate: Int?) -> String {
+        guard let sampleRate = sampleRate, sampleRate > 0 else { return "Unknown" }
+        let khz = Double(sampleRate) / 1000.0
+        return String(format: "%.1f kHz", khz)
+    }
+    
+    // Format audio channels
+    func formatAudioChannels(_ channels: Int?) -> String {
+        guard let channels = channels else { return "Unknown" }
+        switch channels {
+        case 1: return "Mono"
+        case 2: return "Stereo"
+        default: return "\(channels) channels"
+        }
     }
     
     // Detect video codec from URL (synchronous version)

@@ -152,6 +152,57 @@ enum FrameRateMode: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Audio Bitrate
+enum AudioBitrate: String, CaseIterable, Identifiable {
+    case kbps96 = "96 kbps"
+    case kbps128 = "128 kbps"
+    case kbps192 = "192 kbps"
+    case kbps256 = "256 kbps"
+    case kbps320 = "320 kbps"
+    
+    var id: String { rawValue }
+    
+    var bitrateValue: Int {
+        switch self {
+        case .kbps96: return 96
+        case .kbps128: return 128
+        case .kbps192: return 192
+        case .kbps256: return 256
+        case .kbps320: return 320
+        }
+    }
+}
+
+// MARK: - Audio Sample Rate
+enum AudioSampleRate: String, CaseIterable, Identifiable {
+    case hz44100 = "44.1 kHz"
+    case hz48000 = "48 kHz"
+    
+    var id: String { rawValue }
+    
+    var sampleRateValue: Int {
+        switch self {
+        case .hz44100: return 44100
+        case .hz48000: return 48000
+        }
+    }
+}
+
+// MARK: - Audio Channels
+enum AudioChannels: String, CaseIterable, Identifiable {
+    case mono = "Mono"
+    case stereo = "Stereo"
+    
+    var id: String { rawValue }
+    
+    var channelCount: Int {
+        switch self {
+        case .mono: return 1
+        case .stereo: return 2
+        }
+    }
+}
+
 // MARK: - Compression Settings
 class CompressionSettings: ObservableObject {
     // Image settings
@@ -172,6 +223,17 @@ class CompressionSettings: ObservableObject {
     }
     @Published var targetImageOrientationMode: OrientationMode = .auto {
         didSet { UserDefaults.standard.set(targetImageOrientationMode.rawValue, forKey: "targetImageOrientationMode") }
+    }
+    
+    // Audio settings
+    @Published var audioBitrate: AudioBitrate = .kbps192 {
+        didSet { UserDefaults.standard.set(audioBitrate.rawValue, forKey: "audioBitrate") }
+    }
+    @Published var audioSampleRate: AudioSampleRate = .hz44100 {
+        didSet { UserDefaults.standard.set(audioSampleRate.rawValue, forKey: "audioSampleRate") }
+    }
+    @Published var audioChannels: AudioChannels = .stereo {
+        didSet { UserDefaults.standard.set(audioChannels.rawValue, forKey: "audioChannels") }
     }
     
     // Video settings - FFmpeg parameters
@@ -258,6 +320,20 @@ class CompressionSettings: ObservableObject {
         if let orientationRaw = UserDefaults.standard.string(forKey: "targetOrientationMode"),
            let orientation = VideoOrientationMode(rawValue: orientationRaw) {
             self.targetOrientationMode = orientation
+        }
+        
+        // Load audio settings
+        if let bitrateRaw = UserDefaults.standard.string(forKey: "audioBitrate"),
+           let bitrate = AudioBitrate(rawValue: bitrateRaw) {
+            self.audioBitrate = bitrate
+        }
+        if let sampleRateRaw = UserDefaults.standard.string(forKey: "audioSampleRate"),
+           let sampleRate = AudioSampleRate(rawValue: sampleRateRaw) {
+            self.audioSampleRate = sampleRate
+        }
+        if let channelsRaw = UserDefaults.standard.string(forKey: "audioChannels"),
+           let channels = AudioChannels(rawValue: channelsRaw) {
+            self.audioChannels = channels
         }
     }
     
