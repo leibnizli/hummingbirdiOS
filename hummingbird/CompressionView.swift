@@ -499,9 +499,8 @@ struct CompressionView: View {
                 }
             }
             
-            // 设置音频图标
+            // 设置状态为等待
             await MainActor.run {
-                mediaItem.thumbnailImage = UIImage(systemName: "music.note")
                 mediaItem.status = .pending
             }
         } catch {

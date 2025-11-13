@@ -17,16 +17,34 @@ struct CompressionItemRow: View {
             HStack(spacing: 12) {
                 // 预览图
                 ZStack {
-                    Color.gray.opacity(0.2)
-                    
-                    if let thumbnail = item.thumbnailImage {
-                        Image(uiImage: thumbnail)
-                            .resizable()
-                            .scaledToFit()
+                    // 音频文件使用渐变背景
+                    if item.isAudio {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.purple.opacity(0.7),
+                                Color.pink.opacity(0.5)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        
+                        // 音符图标
+                        Image(systemName: "music.note")
+                            .font(.system(size: 36, weight: .medium))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
                     } else {
-                        Image(systemName: item.isVideo ? "video.fill" : "photo.fill")
-                            .font(.title)
-                            .foregroundStyle(.secondary)
+                        Color.gray.opacity(0.2)
+                        
+                        if let thumbnail = item.thumbnailImage {
+                            Image(uiImage: thumbnail)
+                                .resizable()
+                                .scaledToFit()
+                        } else {
+                            Image(systemName: item.isVideo ? "video.fill" : "photo.fill")
+                                .font(.title)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .frame(width: 80, height: 80)

@@ -79,15 +79,15 @@ enum VideoCodec: String, CaseIterable, Identifiable {
 
 // MARK: - Video Quality Preset
 enum VideoQualityPreset: String, CaseIterable, Identifiable {
-    case ultrafast = "Ultra Fast (Lower Quality)"
-    case superfast = "Super Fast (Fair Quality)"
-    case veryfast = "Very Fast (Medium Quality)"
-    case faster = "Faster (Good Quality)"
-    case fast = "Fast (Better Quality)"
+    case ultrafast = "Ultra Fast (Lower)"
+    case superfast = "Super Fast (Fair)"
+    case veryfast = "Very Fast (Medium)"
+    case faster = "Faster (Good)"
+    case fast = "Fast (Better)"
     case medium = "Medium (Balanced)"
-    case slow = "Slow (Very Good Quality)"
-    case slower = "Slower (Excellent Quality)"
-    case veryslow = "Very Slow (Best Quality)"
+    case slow = "Slow (Very Good)"
+    case slower = "Slower (Excellent)"
+    case veryslow = "Very Slow (Best)"
     
     var id: String { rawValue }
     
@@ -108,10 +108,10 @@ enum VideoQualityPreset: String, CaseIterable, Identifiable {
 
 // MARK: - CRF Quality Mode
 enum CRFQualityMode: String, CaseIterable, Identifiable {
-    case veryHigh = "Very High Quality (CRF 18)"
-    case high = "High Quality (CRF 23)"
-    case medium = "Medium Quality (CRF 28)"
-    case low = "Low Quality (CRF 32)"
+    case veryHigh = "Very High (CRF 18)"
+    case high = "High (CRF 23)"
+    case medium = "Medium (CRF 28)"
+    case low = "Low (CRF 32)"
     case custom = "Custom"
     
     var id: String { rawValue }
@@ -154,14 +154,14 @@ enum FrameRateMode: String, CaseIterable, Identifiable {
 
 // MARK: - Audio Bitrate
 enum AudioBitrate: String, CaseIterable, Identifiable {
-    case kbps32 = "32 kbps"
-    case kbps64 = "64 kbps"
-    case kbps96 = "96 kbps"
-    case kbps128 = "128 kbps"
-    case kbps160 = "160 kbps"
-    case kbps192 = "192 kbps"
-    case kbps256 = "256 kbps"
-    case kbps320 = "320 kbps"
+    case kbps32 = "32 kbps - Very Low"
+    case kbps64 = "64 kbps - Voice/Podcast (Mono)"
+    case kbps96 = "96 kbps - Low Music"
+    case kbps128 = "128 kbps - Standard MP3"
+    case kbps160 = "160 kbps - Good Music"
+    case kbps192 = "192 kbps - Very Good"
+    case kbps256 = "256 kbps - High Music"
+    case kbps320 = "320 kbps - Maximum MP3"
     
     var id: String { rawValue }
     
@@ -180,27 +180,27 @@ enum AudioBitrate: String, CaseIterable, Identifiable {
     
     var description: String {
         switch self {
-        case .kbps32: return "Very Low Quality"
+        case .kbps32: return "Very Low"
         case .kbps64: return "Voice/Podcast (Mono)"
-        case .kbps96: return "Low Quality Music"
-        case .kbps128: return "Standard MP3 Quality"
-        case .kbps160: return "Good Music Quality"
-        case .kbps192: return "Very Good Quality (Recommended)"
-        case .kbps256: return "High Quality Music"
-        case .kbps320: return "Maximum MP3 Quality"
+        case .kbps96: return "Low Music"
+        case .kbps128: return "Standard MP3"
+        case .kbps160: return "Good Music"
+        case .kbps192: return "Very Good (Recommended)"
+        case .kbps256: return "High Music"
+        case .kbps320: return "Maximum MP3"
         }
     }
 }
 
 // MARK: - Audio Sample Rate
 enum AudioSampleRate: String, CaseIterable, Identifiable {
-    case hz8000 = "8 kHz"
-    case hz11025 = "11.025 kHz"
-    case hz16000 = "16 kHz"
-    case hz22050 = "22.05 kHz"
-    case hz32000 = "32 kHz"
-    case hz44100 = "44.1 kHz"
-    case hz48000 = "48 kHz"
+    case hz8000 = "8 kHz - Telephone"
+    case hz11025 = "11.025 kHz - AM Radio"
+    case hz16000 = "16 kHz - Wideband Voice"
+    case hz22050 = "22.05 kHz - FM Radio"
+    case hz32000 = "32 kHz - Digital Broadcast"
+    case hz44100 = "44.1 kHz - CD Standard"
+    case hz48000 = "48 kHz - Professional Audio"
     
     var id: String { rawValue }
     
@@ -218,10 +218,10 @@ enum AudioSampleRate: String, CaseIterable, Identifiable {
     
     var description: String {
         switch self {
-        case .hz8000: return "Telephone Quality"
-        case .hz11025: return "AM Radio Quality"
+        case .hz8000: return "Telephone"
+        case .hz11025: return "AM Radio"
         case .hz16000: return "Wideband Voice (VoIP)"
-        case .hz22050: return "FM Radio Quality"
+        case .hz22050: return "FM Radio"
         case .hz32000: return "Digital Broadcast"
         case .hz44100: return "CD Standard (Most Common)"
         case .hz48000: return "Professional Audio/Video"
