@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7AA00648FEEB8B9B28529BE0 /* Pods_hummingbird.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 557D59E54308138129E6A581 /* Pods_hummingbird.framework */; };
+		842D52682EC60024005A5708 /* pngquant in Frameworks */ = {isa = PBXBuildFile; productRef = 842D52672EC60024005A5708 /* pngquant */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				842D52682EC60024005A5708 /* pngquant in Frameworks */,
 				7AA00648FEEB8B9B28529BE0 /* Pods_hummingbird.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -136,7 +138,7 @@
 			mainGroup = 84E0DCAB2EBA3266006AD34D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				8405EA8B2EBF2BB700D71683 /* XCRemoteSwiftPackageReference "pngquant" */,
+				842D52662EC60024005A5708 /* XCLocalSwiftPackageReference "../../../pngquant.swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84E0DCB52EBA3266006AD34D /* Products */;
@@ -448,16 +450,19 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		8405EA8B2EBF2BB700D71683 /* XCRemoteSwiftPackageReference "pngquant" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/awxkee/pngquant.swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.5;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		842D52662EC60024005A5708 /* XCLocalSwiftPackageReference "../../../pngquant.swift" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../../pngquant.swift;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		842D52672EC60024005A5708 /* pngquant */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = pngquant;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 84E0DCAC2EBA3266006AD34D /* Project object */;
 }

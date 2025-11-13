@@ -111,6 +111,52 @@ struct CompressionSettingsView: View {
                     } footer: {
                         Text("Higher quality means larger file size, maintains original resolution. When HEIC is enabled, HEIC images will keep HEIC format; when disabled, MozJPEG will convert to JPEG format. WebP format will be compressed in original format. If compressed file is larger, original will be kept automatically")
                     }
+                    
+                    // Open Source Libraries Notice
+                    Section {
+                        VStack(alignment: .leading, spacing: 16) {
+                            // PNG Compression Library
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("PNG Compression Library")
+                                    .font(.headline)
+                                
+                                Text("This app uses pngquant.swift for PNG compression, which is licensed under the GNU Lesser General Public License v3.0 (LGPL-3.0).")
+                                    .font(.caption)
+                                
+                                Text("The library source code has not been modified.")
+                                    .font(.caption)
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Link("Source Code: pngquant.swift", destination: URL(string: "https://github.com/awxkee/pngquant.swift")!)
+                                        .font(.caption)
+                                    
+                                    Link("LGPL-3.0 License", destination: URL(string: "https://www.gnu.org/licenses/lgpl-3.0.txt")!)
+                                        .font(.caption)
+                                    
+                                    Link("GNU GPL v3", destination: URL(string: "https://www.gnu.org/licenses/gpl-3.0.txt")!)
+                                        .font(.caption)
+                                }
+                                
+                                Text("For library replacement or to obtain object files for relinking, please contact: stormte@gmail.com")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Divider()
+                            
+                            // JPEG Compression Library
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("JPEG Compression Library")
+                                    .font(.headline)
+                                
+                                Text("Uses mozjpeg - Copyright (c) Mozilla Corporation. All rights reserved.")
+                                    .font(.caption)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    } header: {
+                        Text("Open Source Notice")
+                    }
                 } else {
                     // Video Settings
                     Section {
