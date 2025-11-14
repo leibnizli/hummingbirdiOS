@@ -10,7 +10,7 @@ import PhotosUI
 import AVFoundation
 import Photos
 
-struct CompressionView: View {
+struct CompressionViewImage: View {
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var mediaItems: [MediaItem] = []
     @State private var isCompressing = false
@@ -25,114 +25,112 @@ struct CompressionView: View {
     }
     
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            // 顶部选择按钮
             VStack(spacing: 0) {
-                // 顶部选择按钮
-                VStack(spacing: 0) {
-                    HStack(spacing: 12) {
-                        // 左侧：下拉菜单选择来源
-                        Menu {
-                            Button(action: { showingPhotoPicker = true }) {
-                                Label("Select from Photos", systemImage: "photo.on.rectangle.angled")
-                            }
-                            
-                            Button(action: { showingFilePicker = true }) {
-                                Label("Select from Files", systemImage: "folder.fill")
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Text("Add Files")
-                                    .font(.system(size: 15, weight: .semibold))
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 12, weight: .semibold))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                HStack(spacing: 12) {
+                    // 左侧：下拉菜单选择来源
+                    Menu {
+                        Button(action: { showingPhotoPicker = true }) {
+                            Label("Select from Photos", systemImage: "photo.on.rectangle.angled")
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.blue)
-                        .disabled(isCompressing || hasLoadingItems)
                         
-                        // 右侧：开始按钮
-                        Button(action: startBatchCompression) {
-                            HStack(spacing: 6) {
-                                if isCompressing || hasLoadingItems {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.8)
-                                } else {
-                                    Image(systemName: "bolt.fill")
-                                        .font(.system(size: 16, weight: .bold))
-                                }
-                                Text(isCompressing ? "Processing" : hasLoadingItems ? "Loading" : "Start")
-                                    .font(.system(size: 15, weight: .bold))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                        Button(action: { showingFilePicker = true }) {
+                            Label("Select from Files", systemImage: "folder.fill")
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(mediaItems.isEmpty || isCompressing || hasLoadingItems ? .gray : .green)
-                        .disabled(mediaItems.isEmpty || isCompressing || hasLoadingItems)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Add Files")
+                                .font(.system(size: 15, weight: .semibold))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(uiColor: .systemGroupedBackground))
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+                    .disabled(isCompressing || hasLoadingItems)
                     
-                    // 底部分隔线
-                    Rectangle()
-                        .fill(Color(uiColor: .separator).opacity(0.5))
-                        .frame(height: 0.5)
+                    // 右侧：开始按钮
+                    Button(action: startBatchCompression) {
+                        HStack(spacing: 6) {
+                            if isCompressing || hasLoadingItems {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "bolt.fill")
+                                    .font(.system(size: 16, weight: .bold))
+                            }
+                            Text(isCompressing ? "Processing" : hasLoadingItems ? "Loading" : "Start")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(mediaItems.isEmpty || isCompressing || hasLoadingItems ? .gray : .green)
+                    .disabled(mediaItems.isEmpty || isCompressing || hasLoadingItems)
                 }
-
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(uiColor: .systemGroupedBackground))
                 
-                // 文件列表
-                if mediaItems.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "photo.stack")
-                            .font(.system(size: 60))
-                            .foregroundStyle(.secondary)
-                        Text("Select media to compress")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List {
-                        ForEach(mediaItems) { item in
-                            CompressionItemRow(item: item)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .listRowSeparator(.visible)
-                        }
-                        .onDelete { indexSet in
-                            // 只有在不压缩且没有加载项时才允许删除
-                            guard !isCompressing && !hasLoadingItems else { return }
-                            
-                            // 检查是否删除了正在播放的音频
-                            for index in indexSet {
-                                let item = mediaItems[index]
-                                if item.isAudio && AudioPlayerManager.shared.isCurrentAudio(itemId: item.id) {
-                                    AudioPlayerManager.shared.stop()
-                                }
-                            }
-                            
-                            withAnimation {
-                                mediaItems.remove(atOffsets: indexSet)
-                            }
-                        }
-                        .deleteDisabled(isCompressing || hasLoadingItems)
-                    }
-                    .listStyle(.plain)
-                }
+                // 底部分隔线
+                Rectangle()
+                    .fill(Color(uiColor: .separator).opacity(0.5))
+                    .frame(height: 0.5)
             }
-            .navigationTitle("Media Compression")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gear")
+
+            
+            // 文件列表
+            if mediaItems.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "photo.stack")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.secondary)
+                    Text("Select media to compress")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(mediaItems) { item in
+                        CompressionItemRow(item: item)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowSeparator(.visible)
                     }
+                    .onDelete { indexSet in
+                        // 只有在不压缩且没有加载项时才允许删除
+                        guard !isCompressing && !hasLoadingItems else { return }
+                        
+                        // 检查是否删除了正在播放的音频
+                        for index in indexSet {
+                            let item = mediaItems[index]
+                            if item.isAudio && AudioPlayerManager.shared.isCurrentAudio(itemId: item.id) {
+                                AudioPlayerManager.shared.stop()
+                            }
+                        }
+                        
+                        withAnimation {
+                            mediaItems.remove(atOffsets: indexSet)
+                        }
+                    }
+                    .deleteDisabled(isCompressing || hasLoadingItems)
+                }
+                .listStyle(.plain)
+            }
+        }
+        .navigationTitle("Image Compression")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingSettings = true }) {
+                    Image(systemName: "gear")
                 }
             }
         }
@@ -146,14 +144,14 @@ struct CompressionView: View {
             }
         }
         .sheet(isPresented: $showingSettings) {
-            CompressionSettingsView(settings: settings)
+            CompressionSettingsViewImage(settings: settings)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedItems, maxSelectionCount: 20, matching: .any(of: [.images, .videos]))
+        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedItems, maxSelectionCount: 20, matching: .any(of: [.images]))
         .fileImporter(
             isPresented: $showingFilePicker,
-            allowedContentTypes: [.image, .movie, .audio],
+            allowedContentTypes: [.image],
             allowsMultipleSelection: true
         ) { result in
             Task {
@@ -1083,5 +1081,5 @@ struct CompressionView: View {
 }
 
 #Preview {
-    CompressionView()
+    CompressionViewImage()
 }

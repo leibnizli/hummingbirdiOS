@@ -10,7 +10,7 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            CompressionView()
+            CompressionMainView()
                 .tabItem {
                     Label("Compress", systemImage: "bolt.fill")
                 }
