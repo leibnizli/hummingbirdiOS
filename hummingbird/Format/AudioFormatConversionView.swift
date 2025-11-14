@@ -77,11 +77,12 @@ struct AudioFormatConversionView: View {
                     Spacer()
                     Picker("", selection: $settings.targetAudioFormat) {
                         ForEach(AudioFormat.allCases) { format in
-                            Text(format.rawValue).tag(format)
+                            Text("\(format.rawValue) · \(format.description)")
+                                .tag(format)
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(width: 120)
+                    .frame(width: 200)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)

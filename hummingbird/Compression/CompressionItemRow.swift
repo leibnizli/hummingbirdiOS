@@ -177,7 +177,7 @@ struct CompressionItemRow: View {
                             statusBadge
                         }
                         
-                        // 文件大小和压缩信息
+                        //MARK: 文件大小和压缩信息
                         if item.status == .completed {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Size: \(item.formatBytes(item.originalSize)) → \(item.formatBytes(item.compressedSize))")

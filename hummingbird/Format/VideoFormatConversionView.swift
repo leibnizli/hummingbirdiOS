@@ -84,7 +84,7 @@ struct VideoFormatConversionView: View {
                     .frame(height: 0.5)
             }
             
-            // 设置区域
+            //MARK: 设置区域
             VStack(spacing: 0) {
                 HStack {
                     Text("Target Video Format")
@@ -132,7 +132,7 @@ struct VideoFormatConversionView: View {
             }
             .background(Color(uiColor: .systemBackground))
             
-            // 文件列表
+            //MARK: 文件列表
             if mediaItems.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "video.stack")
@@ -179,6 +179,15 @@ struct VideoFormatConversionView: View {
                 settings.useHEVC = false
             }
         }
+        .onChange(of: selectedItems) { _, newItems in
+            guard !newItems.isEmpty else { return }
+            Task {
+                await loadSelectedItems(newItems)
+                await MainActor.run {
+                    selectedItems = []
+                }
+            }
+        }
     }
     
     private func startConversion() {
@@ -219,42 +228,266 @@ struct VideoFormatConversionView: View {
         
         await convertVideo(item)
     }
+    //从相册选择
+    private func loadSelectedItems(_ items: [PhotosPickerItem]) async {
+        // 停止当前播放
+        await MainActor.run {
+            AudioPlayerManager.shared.stop()
+        }
+        
+        await MainActor.run {
+            mediaItems.removeAll()
+        }
+        
+        for item in items {
+            let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) })
+            let mediaItem = MediaItem(pickerItem: item, isVideo: isVideo)
+            
+            // 先添加到列表，显示加载状态
+            await MainActor.run {
+                mediaItems.append(mediaItem)
+            }
+            
+            if isVideo {
+                // 视频优化：延迟加载，只在需要时加载完整数据
+                await loadVideoItemOptimized(item, mediaItem)
+            } else {
+                // 图片：正常加载
+                await loadImageItem(item, mediaItem)
+            }
+        }
+    }
     
+    private func loadImageItem(_ item: PhotosPickerItem, _ mediaItem: MediaItem) async {
+        if let data = try? await item.loadTransferable(type: Data.self) {
+            await MainActor.run {
+                mediaItem.originalData = data
+                mediaItem.originalSize = data.count
+                
+                // 检测原始图片格式
+                let isPNG = item.supportedContentTypes.contains { contentType in
+                    contentType.identifier == "public.png" ||
+                    contentType.conforms(to: .png)
+                }
+                let isHEIC = item.supportedContentTypes.contains { contentType in
+                    contentType.identifier == "public.heic" ||
+                    contentType.identifier == "public.heif" ||
+                    contentType.conforms(to: .heic) ||
+                    contentType.conforms(to: .heif)
+                }
+                let isWebP = item.supportedContentTypes.contains { contentType in
+                    contentType.identifier == "org.webmproject.webp" ||
+                    contentType.preferredMIMEType == "image/webp"
+                }
+                
+                if isPNG {
+                    mediaItem.originalImageFormat = .png
+                    mediaItem.fileExtension = "png"
+                } else if isHEIC {
+                    mediaItem.originalImageFormat = .heic
+                    mediaItem.fileExtension = "heic"
+                } else if isWebP {
+                    mediaItem.originalImageFormat = .webp
+                    mediaItem.fileExtension = "webp"
+                } else {
+                    mediaItem.originalImageFormat = .jpeg
+                    mediaItem.fileExtension = "jpg"
+                }
+                
+                if let image = UIImage(data: data) {
+                    mediaItem.thumbnailImage = generateThumbnail(from: image)
+                    mediaItem.originalResolution = image.size
+                }
+                
+                // 加载完成，设置为等待状态
+                mediaItem.status = .pending
+            }
+        }
+    }
+    
+    private func loadVideoItemOptimized(_ item: PhotosPickerItem, _ mediaItem: MediaItem) async {
+        // 检测视频格式
+        var detectedFormat = "video"
+        
+        // 检查所有支持的内容类型
+        for contentType in item.supportedContentTypes {
+            // M4V 格式检测（优先检测，因为 m4v 也可能匹配 mpeg4Movie）
+            if contentType.identifier == "public.m4v" ||
+               contentType.preferredFilenameExtension == "m4v" {
+                detectedFormat = "m4v"
+                break
+            }
+            // MOV 格式检测
+            else if contentType.identifier == "com.apple.quicktime-movie" ||
+                    contentType.conforms(to: .quickTimeMovie) ||
+                    contentType.preferredFilenameExtension == "mov" {
+                detectedFormat = "mov"
+                break
+            }
+            // MP4 格式检测
+            else if contentType.identifier == "public.mpeg-4" ||
+                    contentType.conforms(to: .mpeg4Movie) ||
+                    contentType.preferredFilenameExtension == "mp4" ||
+                    contentType.identifier == "public.mp4" {
+                detectedFormat = "mp4"
+                break
+            }
+            // AVI 格式检测
+            else if contentType.identifier == "public.avi" ||
+                    contentType.preferredFilenameExtension == "avi" {
+                detectedFormat = "avi"
+                break
+            }
+            // MKV 格式检测
+            else if contentType.identifier == "org.matroska.mkv" ||
+                    contentType.preferredFilenameExtension == "mkv" {
+                detectedFormat = "mkv"
+                break
+            }
+            // WebM 格式检测
+            else if contentType.identifier == "org.webmproject.webm" ||
+                    contentType.preferredFilenameExtension == "webm" {
+                detectedFormat = "webm"
+                break
+            }
+            // 通用视频格式检测
+            else if contentType.conforms(to: .movie) ||
+                    contentType.conforms(to: .video) {
+                // 尝试从 preferredFilenameExtension 获取具体格式
+                if let ext = contentType.preferredFilenameExtension?.lowercased(),
+                   ["mov", "mp4", "avi", "mkv", "webm", "m4v"].contains(ext) {
+                    detectedFormat = ext
+                    break
+                }
+            }
+        }
+        
+        await MainActor.run {
+            // 设置文件扩展名
+            mediaItem.fileExtension = detectedFormat
+            // 同时记录原始视频格式，用于后续格式转换的显示
+            if detectedFormat != "video" {
+                mediaItem.outputVideoFormat = detectedFormat
+            }
+        }
+        
+        // 先尝试使用 URL 方式加载（更高效）
+        if let url = try? await item.loadTransferable(type: URL.self) {
+            await MainActor.run {
+                mediaItem.sourceVideoURL = url
+                
+                // 快速获取文件大小（不加载整个文件）
+                if let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int {
+                    mediaItem.originalSize = fileSize
+                }
+                
+                // 立即设置为 pending 状态，让用户看到视频已添加
+                mediaItem.status = .pending
+                
+                // 在后台异步获取视频信息和缩略图
+                Task {
+                    await loadVideoMetadata(for: mediaItem, url: url)
+                }
+            }
+        } else if let data = try? await item.loadTransferable(type: Data.self) {
+            // 如果 URL 方式失败，使用 Data 方式加载
+            await MainActor.run {
+                mediaItem.originalData = data
+                mediaItem.originalSize = data.count
+            }
+            
+            // 创建临时文件
+            let detectedExtension = mediaItem.fileExtension.isEmpty ? "mp4" : mediaItem.fileExtension
+            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("source_\(mediaItem.id.uuidString)")
+                .appendingPathExtension(detectedExtension)
+            
+            do {
+                try data.write(to: tempURL)
+                
+                await MainActor.run {
+                    mediaItem.sourceVideoURL = tempURL
+                    // 立即设置为 pending 状态
+                    mediaItem.status = .pending
+                    
+                    // 在后台异步获取视频信息和缩略图
+                    Task {
+                        await loadVideoMetadata(for: mediaItem, url: tempURL)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    mediaItem.status = .failed
+                    mediaItem.errorMessage = "Unable to create temporary video file: \(error.localizedDescription)"
+                }
+            }
+        } else {
+            // 如果两种方式都失败，标记为失败
+            await MainActor.run {
+                mediaItem.status = .failed
+                mediaItem.errorMessage = "Unable to load video file"
+            }
+        }
+    }
+    //MARK: icloud
     private func loadFilesFromURLs(_ urls: [URL]) async {
         await MainActor.run {
             mediaItems.removeAll()
         }
         
         for url in urls {
+            // 验证文件是否可访问
             guard url.startAccessingSecurityScopedResource() else { continue }
             defer { url.stopAccessingSecurityScopedResource() }
             
-            let mediaItem = MediaItem(pickerItem: nil, isVideo: true)
+            // 检查文件类型
+            let fileExtension = url.pathExtension.lowercased()
+            let audioExtensions = ["mp3", "m4a", "aac", "wav", "flac", "ogg"]
+            let isAudio = audioExtensions.contains(fileExtension)
+            let isVideo = !isAudio && (UTType(filenameExtension: url.pathExtension)?.conforms(to: .movie) ?? false)
+            let mediaItem = MediaItem(pickerItem: nil, isVideo: isVideo)
             
+            // 添加到列表
             await MainActor.run {
-                mediaItem.fileExtension = url.pathExtension.lowercased()
                 mediaItems.append(mediaItem)
             }
             
             do {
+                // 读取文件数据
                 let data = try Data(contentsOf: url)
                 
                 await MainActor.run {
                     mediaItem.originalData = data
                     mediaItem.originalSize = data.count
+                    
+                    // 使用 UTType 获取更准确的扩展名
+                    if let type = UTType(filenameExtension: url.pathExtension) {
+                        mediaItem.fileExtension = type.preferredFilenameExtension?.lowercased() ?? url.pathExtension.lowercased()
+                        
+                        // 设置格式
+                        mediaItem.outputVideoFormat = type.preferredFilenameExtension?.lowercased() ?? url.pathExtension.lowercased()
+                    } else {
+                        // 回退到文件扩展名
+                        mediaItem.fileExtension = url.pathExtension.lowercased()
+                        if isVideo {
+                            mediaItem.outputVideoFormat = url.pathExtension.lowercased()
+                        }
+                    }
                 }
                 
+                // 创建临时文件，使用检测到的扩展名
+                let detectedExtension = mediaItem.fileExtension ?? url.pathExtension
                 let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
                     .appendingPathComponent("source_\(mediaItem.id.uuidString)")
-                    .appendingPathExtension(url.pathExtension)
+                    .appendingPathExtension(detectedExtension)
                 try data.write(to: tempURL)
                 
                 await MainActor.run {
                     mediaItem.sourceVideoURL = tempURL
-                    mediaItem.status = .pending
                 }
                 
-                await loadAudioMetadata(for: mediaItem, url: tempURL)
+                // 加载视频元数据（会进一步验证格式）
+                await loadVideoMetadata(for: mediaItem, url: tempURL)
             } catch {
                 await MainActor.run {
                     mediaItem.status = .failed
@@ -489,103 +722,6 @@ struct VideoFormatConversionView: View {
         return hours * 3600 + minutes * 60 + seconds
     }
     
-    // 加载音频项（优化版本）
-    private func loadAudioItemOptimized(_ item: PhotosPickerItem, _ mediaItem: MediaItem) async {
-        // 检测音频格式
-        await MainActor.run {
-            if let ext = item.supportedContentTypes.first?.preferredFilenameExtension?.lowercased() {
-                mediaItem.fileExtension = ext
-            } else {
-                mediaItem.fileExtension = "audio"
-            }
-        }
-        
-        // 尝试使用 URL 方式加载
-        if let url = try? await item.loadTransferable(type: URL.self) {
-            await MainActor.run {
-                mediaItem.sourceVideoURL = url  // 复用这个字段
-                
-                // 快速获取文件大小
-                if let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int {
-                    mediaItem.originalSize = fileSize
-                }
-                
-                mediaItem.status = .pending
-                
-                // 在后台异步获取音频信息
-                Task {
-                    await loadAudioMetadata(for: mediaItem, url: url)
-                }
-            }
-        } else if let data = try? await item.loadTransferable(type: Data.self) {
-            await MainActor.run {
-                mediaItem.originalData = data
-                mediaItem.originalSize = data.count
-                
-                let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("source_\(mediaItem.id.uuidString)")
-                    .appendingPathExtension(mediaItem.fileExtension)
-                try? data.write(to: tempURL)
-                mediaItem.sourceVideoURL = tempURL
-                
-                mediaItem.status = .pending
-                
-                Task {
-                    await loadAudioMetadata(for: mediaItem, url: tempURL)
-                }
-            }
-        }
-    }
-    
-    // 加载音频元数据
-    private func loadAudioMetadata(for mediaItem: MediaItem, url: URL) async {
-        let asset = AVURLAsset(url: url)
-        
-        do {
-            let duration = try await asset.load(.duration)
-            let durationSeconds = CMTimeGetSeconds(duration)
-            
-            await MainActor.run {
-                mediaItem.duration = durationSeconds
-            }
-            
-            let tracks = try await asset.loadTracks(withMediaType: .audio)
-            if let audioTrack = tracks.first {
-                let formatDescriptions = audioTrack.formatDescriptions as! [CMFormatDescription]
-                if let formatDescription = formatDescriptions.first {
-                    let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)
-                    
-                    if let asbd = audioStreamBasicDescription {
-                        let sampleRate = Int(asbd.pointee.mSampleRate)
-                        let channels = Int(asbd.pointee.mChannelsPerFrame)
-                        
-                        await MainActor.run {
-                            mediaItem.audioSampleRate = sampleRate
-                            mediaItem.audioChannels = channels
-                        }
-                    }
-                }
-                
-                if let estimatedBitrate = try? await audioTrack.load(.estimatedDataRate) {
-                    let bitrateKbps = Int(estimatedBitrate / 1000)
-                    await MainActor.run {
-                        mediaItem.audioBitrate = bitrateKbps
-                    }
-                }
-            }
-            
-            await MainActor.run {
-                mediaItem.status = .pending
-            }
-        } catch {
-            print("Failed to load audio metadata: \(error)")
-            await MainActor.run {
-                mediaItem.status = .failed
-                mediaItem.errorMessage = "Failed to load audio metadata"
-            }
-        }
-    }
-    
     private func generateThumbnail(from image: UIImage, size: CGSize = CGSize(width: 80, height: 80)) -> UIImage? {
         let aspectRatio = image.size.width / image.size.height
         let targetAspectRatio = size.width / size.height
@@ -602,7 +738,52 @@ struct VideoFormatConversionView: View {
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
-    
+    private func loadVideoMetadata(for mediaItem: MediaItem, url: URL) async {
+        let asset = AVURLAsset(url: url)
+        
+        // 异步加载视频轨道信息和时长
+        do {
+            let tracks = try await asset.loadTracks(withMediaType: .video)
+            if let videoTrack = tracks.first {
+                let size = try await videoTrack.load(.naturalSize)
+                let transform = try await videoTrack.load(.preferredTransform)
+                let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
+                
+                // 获取帧率
+                let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
+                
+                await MainActor.run {
+                    mediaItem.originalResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
+                    mediaItem.frameRate = Double(nominalFrameRate)
+                }
+            }
+            
+            // 加载视频时长
+            let duration = try await asset.load(.duration)
+            let durationSeconds = CMTimeGetSeconds(duration)
+            
+            await MainActor.run {
+                mediaItem.duration = durationSeconds
+            }
+        } catch {
+            print("Failed to load video track info: \(error)")
+        }
+        
+        // 检测视频编码（使用异步版本更可靠）
+        if let codec = await MediaItem.detectVideoCodecAsync(from: url) {
+            await MainActor.run {
+                mediaItem.videoCodec = codec
+            }
+        }
+        
+        // 异步生成缩略图
+        await generateVideoThumbnailOptimized(for: mediaItem, url: url)
+        
+        // 视频元数据加载完成，设置为等待状态
+        await MainActor.run {
+            mediaItem.status = .pending
+        }
+    }
     private func generateVideoThumbnailOptimized(for item: MediaItem, url: URL) async {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
