@@ -10,13 +10,6 @@ import SwiftUI
 struct CompressionSettingsViewAudio: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var settings: CompressionSettings
-    @State private var selectedCategory: SettingsCategory = .video
-    
-    enum SettingsCategory: String, CaseIterable {
-        case video = "Video"
-        case audio = "Audio"
-        case image = "Image"
-    }
     
     var body: some View {
         NavigationView {
@@ -42,7 +35,7 @@ struct CompressionSettingsViewAudio: View {
                                 Text(bitrate.rawValue).tag(bitrate)
                             }
                         }
-                        .disabled(settings.audioFormat == .original || settings.audioFormat == .flac || settings.audioFormat == .wav)
+                        .disabled(settings.audioFormat == .flac || settings.audioFormat == .wav)
                         
                         Picker("Sample Rate", selection: $settings.audioSampleRate) {
                             ForEach(AudioSampleRate.allCases) { sampleRate in
@@ -103,7 +96,7 @@ struct CompressionSettingsViewAudio: View {
                         Text("How It Works")
                     }
                 }
-                .navigationTitle("Compression Settings")
+                .navigationTitle("Compression Audio Settings")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {

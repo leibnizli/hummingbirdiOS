@@ -10,13 +10,6 @@ import SwiftUI
 struct CompressionSettingsViewImage: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var settings: CompressionSettings
-    @State private var selectedCategory: SettingsCategory = .video
-    
-    enum SettingsCategory: String, CaseIterable {
-        case video = "Video"
-        case audio = "Audio"
-        case image = "Image"
-    }
     
     var body: some View {
         NavigationView {
@@ -149,7 +142,7 @@ struct CompressionSettingsViewImage: View {
                         Text("Open Source Notice")
                     }
                 }
-                .navigationTitle("Compression Settings")
+                .navigationTitle("Compression Image Settings")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
