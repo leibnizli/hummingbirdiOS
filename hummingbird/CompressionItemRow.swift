@@ -55,12 +55,6 @@ struct CompressionItemRow: View {
                                 endPoint: .bottomTrailing
                             )
                             
-                            // 音符图标
-                            Image(systemName: "music.note")
-                                .font(.system(size: 36, weight: .medium))
-                                .foregroundStyle(.white)
-                                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                            
                             // 播放/暂停按钮
                             // 优先使用压缩后的音频，如果没有则使用原始音频
                             if let audioURL = item.compressedVideoURL ?? item.sourceVideoURL {
@@ -77,7 +71,6 @@ struct CompressionItemRow: View {
                                             .foregroundStyle(.purple)
                                             .offset(x: audioPlayer.isPlaying(itemId: item.id) ? 0 : 2)
                                     }
-                                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                                 }
                                 .buttonStyle(.plain)
                             }
