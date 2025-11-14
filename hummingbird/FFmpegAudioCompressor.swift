@@ -178,7 +178,7 @@ class FFmpegAudioCompressor {
         
         // Input file
         command += "-i \"\(inputPath)\""
-        
+        switch format {
         case .original:
             // 理论上不应该到达这里，因为在 CompressionView 中已经将 .original 转换为实际格式
             // 但如果真的到达这里，不指定编码器，让 FFmpeg 根据输出文件扩展名自动选择
