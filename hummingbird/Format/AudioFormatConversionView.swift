@@ -438,10 +438,43 @@ struct AudioFormatConversionView: View {
                     }
                 }
                 
-                if let estimatedBitrate = try? await audioTrack.load(.estimatedDataRate) {
+                if let estimatedBitrate = try? await audioTrack.load(.estimatedDataRate), estimatedBitrate > 0 {
                     let bitrateKbps = Int(estimatedBitrate / 1000)
                     await MainActor.run {
                         mediaItem.audioBitrate = bitrateKbps
+                    }
+                    print("✅ [Audio Metadata] AVFoundation 检测到比特率: \(bitrateKbps) kbps")
+                } else {
+                    // AVFoundation 检测失败，使用 FFmpeg 作为回退
+                    print("⚠️ [Audio Metadata] AVFoundation 无法检测比特率，尝试使用 FFmpeg")
+                    
+                    if let ffmpegInfo = await FFmpegAudioProbe.probeAudioFile(at: url) {
+                        await MainActor.run {
+                            // 使用 FFmpeg 检测到的信息
+                            if let bitrate = ffmpegInfo.bitrate {
+                                mediaItem.audioBitrate = bitrate
+                                print("✅ [Audio Metadata] FFmpeg 检测到比特率: \(bitrate) kbps")
+                            }
+                            
+                            // 如果 AVFoundation 没有检测到采样率和声道，也使用 FFmpeg 的
+                            if mediaItem.audioSampleRate == nil, let sampleRate = ffmpegInfo.sampleRate {
+                                mediaItem.audioSampleRate = sampleRate
+                            }
+                            if mediaItem.audioChannels == nil, let channels = ffmpegInfo.channels {
+                                mediaItem.audioChannels = channels
+                            }
+                        }
+                    } else {
+                        // FFmpeg 也失败，尝试计算平均比特率
+                        print("⚠️ [Audio Metadata] FFmpeg 探测失败，尝试计算平均比特率")
+                        if let calculatedBitrate = FFmpegAudioProbe.calculateAverageBitrate(fileURL: url, duration: durationSeconds) {
+                            await MainActor.run {
+                                mediaItem.audioBitrate = calculatedBitrate
+                                print("✅ [Audio Metadata] 计算得到平均比特率: \(calculatedBitrate) kbps")
+                            }
+                        } else {
+                            print("❌ [Audio Metadata] 所有方法都无法检测比特率")
+                        }
                     }
                 }
             }
