@@ -148,7 +148,7 @@ struct CompressionSettingsViewVideo: View {
                         Text("H.265 provides higher compression ratio but requires more processing time. CRF mode (recommended) provides stable quality. Slower encoding speed results in better compression.")
                     }
                 }
-                .navigationTitle("Compression Video Settings")
+                .navigationTitle("Video Compression Settings")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {

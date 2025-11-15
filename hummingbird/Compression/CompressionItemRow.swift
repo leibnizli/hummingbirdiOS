@@ -213,17 +213,24 @@ struct CompressionItemRow: View {
                                             Text("Iterations: \(params.numIterations), Large: \(params.numIterationsLarge)")
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
-                                            let lossyModes = [
-                                                params.actualLossyTransparent ? "lossy_transparent" : nil,
-                                                params.actualLossy8bit ? "lossy_8bit" : nil
-                                            ].compactMap { $0 }.joined(separator: ", ")
                                             
-                                            if !lossyModes.isEmpty {
-                                                Text("Lossy: \(lossyModes)")
+                                            // 显示 Lossy Transparent 状态
+                                            if params.actualLossyTransparent {
+                                                Text("✓ lossy_transparent enabled")
                                                     .font(.caption2)
                                                     .foregroundStyle(.orange)
-                                            } else {
-                                                Text("Lossy: disabled")
+                                            }
+                                            
+                                            // 显示 Lossy 8-bit 状态
+                                            if params.actualLossy8bit {
+                                                Text("✓ lossy_8bit enabled")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.orange)
+                                            }
+                                            
+                                            // 如果都没有启用
+                                            if !params.actualLossyTransparent && !params.actualLossy8bit {
+                                                Text("Lossy: disabled (lossless)")
                                                     .font(.caption2)
                                                     .foregroundStyle(.secondary)
                                             }

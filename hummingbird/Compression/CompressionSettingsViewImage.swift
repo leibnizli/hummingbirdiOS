@@ -99,7 +99,7 @@ struct CompressionSettingsViewImage: View {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("Zopfli Iterations")
+                                Text("Zopfli Iterations (Small Images)")
                                 Spacer()
                                 Text("\(settings.pngNumIterations)")
                                     .foregroundStyle(.secondary)
@@ -108,11 +108,14 @@ struct CompressionSettingsViewImage: View {
                                 get: { Double(settings.pngNumIterations) },
                                 set: { settings.pngNumIterations = Int($0) }
                             ), in: 1...50, step: 1)
+                            Text("Used for images smaller than 1MB. Higher values = smaller file size, but slower compression. Default: 15 iterations.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("Large Image Iterations")
+                                Text("Zopfli Iterations (Large Images)")
                                 Spacer()
                                 Text("\(settings.pngNumIterationsLarge)")
                                     .foregroundStyle(.secondary)
@@ -121,18 +124,21 @@ struct CompressionSettingsViewImage: View {
                                 get: { Double(settings.pngNumIterationsLarge) },
                                 set: { settings.pngNumIterationsLarge = Int($0) }
                             ), in: 1...50, step: 1)
+                            Text("Used for images 1MB or larger. Usually set lower than small image iterations to balance compression vs time. Default: 5 iterations.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                         
                         VStack(alignment: .leading, spacing: 6) {
                             Toggle("Allow Lossy Transparent Pixels", isOn: $settings.pngLossyTransparent)
-                            Text("⚠️ Only applies to images with alpha channel (transparency). Reduces file size by sacrificing transparency quality. Ignored for opaque images.")
+                            Text("Only applies to images with alpha channel (transparency). Reduces file size by sacrificing transparency quality. Ignored for opaque images.")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                         }
                         
                         VStack(alignment: .leading, spacing: 6) {
                             Toggle("Convert 16-bit to 8-bit", isOn: $settings.pngLossy8bit)
-                            Text("⚠️ Only applies to 16-bit per channel images. Reduces precision to 8-bit, which reduces file size but may lose subtle color gradations. Ignored for standard 8-bit images.")
+                            Text("Only applies to 16-bit per channel images. Reduces precision to 8-bit, which reduces file size but may lose subtle color gradations. Ignored for standard 8-bit images.")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                         }
@@ -159,7 +165,7 @@ struct CompressionSettingsViewImage: View {
                         Text("Open Source Notice")
                     }
                 }
-                .navigationTitle("Compression Image Settings")
+                .navigationTitle("Image Compression Settings")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {

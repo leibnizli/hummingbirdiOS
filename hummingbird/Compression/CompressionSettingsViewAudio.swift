@@ -97,7 +97,7 @@ struct CompressionSettingsViewAudio: View {
                     }
 
                 }
-                .navigationTitle("Compression Audio Settings")
+                .navigationTitle("Audio Compression Settings")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
