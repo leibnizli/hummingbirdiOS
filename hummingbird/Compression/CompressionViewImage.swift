@@ -198,6 +198,9 @@ struct CompressionViewImage: View {
                 // 读取文件数据
                 let data = try Data(contentsOf: url)
                 
+                // 检测是否是 WebP
+                let isWebP = UTType(filenameExtension: url.pathExtension)?.conforms(to: .webP) ?? false
+                
                 await MainActor.run {
                     mediaItem.originalData = data
                     mediaItem.originalSize = data.count
@@ -233,6 +236,47 @@ struct CompressionViewImage: View {
                         mediaItem.thumbnailImage = generateThumbnail(from: image)
                         mediaItem.originalResolution = image.size
                         mediaItem.status = .pending
+                    }
+                }
+                
+                // 检测动画 WebP（文件选择器路径）
+                if isWebP && !isVideo && !isAudio {
+                    print("🟡 [LoadFileURLs] 检测到 WebP 文件，开始检测动画")
+                    
+                    // 快速文件头检测
+                    let bytes = [UInt8](data.prefix(30))
+                    var hasAnimationFlag = false
+                    
+                    if bytes.count >= 21 && 
+                       bytes[12] == 0x56 && bytes[13] == 0x50 && 
+                       bytes[14] == 0x38 && bytes[15] == 0x58 {
+                        let flags = bytes[20]
+                        hasAnimationFlag = (flags & 0x02) != 0
+                        print("📊 [LoadFileURLs] 文件头检测 - VP8X 标志位: 0x\(String(format: "%02X", flags)), 动画: \(hasAnimationFlag)")
+                    }
+                    
+                    // 如果有动画标志，立即设置
+                    if hasAnimationFlag {
+                        await MainActor.run {
+                            mediaItem.isAnimatedWebP = true
+                            mediaItem.webpFrameCount = 0
+                        }
+                    }
+                    
+                    // 后台获取准确帧数
+                    Task {
+                        if let animatedImage = SDAnimatedImage(data: data) {
+                            let count = animatedImage.animatedImageFrameCount
+                            let isAnimated = count > 1
+                            let frameCount = Int(count)
+                            
+                            print("📊 [LoadFileURLs] SDAnimatedImage 检测完成 - 动画: \(isAnimated), 帧数: \(frameCount)")
+                            
+                            await MainActor.run {
+                                mediaItem.isAnimatedWebP = isAnimated
+                                mediaItem.webpFrameCount = frameCount
+                            }
+                        }
                     }
                 }
                 
@@ -277,6 +321,8 @@ struct CompressionViewImage: View {
     }
     //从相册选择
     private func loadSelectedItems(_ items: [PhotosPickerItem]) async {
+        print("🟢 [LoadSelectedItems] 开始加载 \(items.count) 个文件")
+        
         // 停止当前播放
         await MainActor.run {
             AudioPlayerManager.shared.stop()
@@ -286,9 +332,14 @@ struct CompressionViewImage: View {
             mediaItems.removeAll()
         }
         
-        for item in items {
+        for (index, item) in items.enumerated() {
+            print("🟢 [LoadSelectedItems] 处理第 \(index + 1)/\(items.count) 个文件")
+            print("🟢 [LoadSelectedItems] 支持的类型: \(item.supportedContentTypes.map { $0.identifier })")
+            
             let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) })
             let mediaItem = MediaItem(pickerItem: item, isVideo: isVideo)
+            
+            print("🟢 [LoadSelectedItems] 文件类型: \(isVideo ? "视频" : "图片")")
             
             // 先添加到列表，显示加载状态
             await MainActor.run {
@@ -297,16 +348,24 @@ struct CompressionViewImage: View {
             
             if isVideo {
                 // 视频优化：延迟加载，只在需要时加载完整数据
+                print("🟢 [LoadSelectedItems] 调用 loadVideoItemOptimized")
                 await loadVideoItemOptimized(item, mediaItem)
             } else {
                 // 图片：正常加载
+                print("🟢 [LoadSelectedItems] 调用 loadImageItem")
                 await loadImageItem(item, mediaItem)
             }
         }
+        
+        print("🟢 [LoadSelectedItems] 所有文件加载完成")
     }
     
     private func loadImageItem(_ item: PhotosPickerItem, _ mediaItem: MediaItem) async {
+        print("🔵 [LoadImage] 开始加载图片")
+        
         if let data = try? await item.loadTransferable(type: Data.self) {
+            print("🔵 [LoadImage] 数据加载成功，大小: \(data.count) bytes")
+            
             // 检测原始图片格式
             let isPNG = item.supportedContentTypes.contains { contentType in
                 contentType.identifier == "public.png" ||
@@ -323,18 +382,7 @@ struct CompressionViewImage: View {
                 contentType.preferredMIMEType == "image/webp"
             }
             
-            // 检测动画 WebP（在主线程外）
-            var isAnimated = false
-            var frameCount = 0
-            if isWebP {
-                if let animatedImage = SDAnimatedImage(data: data) {
-                    let count = animatedImage.animatedImageFrameCount
-                    isAnimated = count > 1
-                    frameCount = Int(count)
-                    print("📊 [LoadImage] 检测到 WebP - 动画: \(isAnimated), 帧数: \(frameCount)")
-                }
-            }
-            
+            // 先设置基本信息
             await MainActor.run {
                 mediaItem.originalData = data
                 mediaItem.originalSize = data.count
@@ -348,8 +396,6 @@ struct CompressionViewImage: View {
                 } else if isWebP {
                     mediaItem.originalImageFormat = .webp
                     mediaItem.fileExtension = "webp"
-                    mediaItem.isAnimatedWebP = isAnimated
-                    mediaItem.webpFrameCount = frameCount
                 } else {
                     mediaItem.originalImageFormat = .jpeg
                     mediaItem.fileExtension = "jpg"
@@ -362,6 +408,51 @@ struct CompressionViewImage: View {
                 
                 // 加载完成，设置为等待状态
                 mediaItem.status = .pending
+            }
+            
+            // 异步检测动画 WebP（不阻塞 UI）
+            if isWebP {
+                // 先快速检查文件头
+                let bytes = [UInt8](data.prefix(30))
+                var hasAnimationFlag = false
+                
+                if bytes.count >= 21 && 
+                   bytes[12] == 0x56 && bytes[13] == 0x50 && 
+                   bytes[14] == 0x38 && bytes[15] == 0x58 {
+                    let flags = bytes[20]
+                    hasAnimationFlag = (flags & 0x02) != 0
+                    print("📊 [LoadImage] 文件头快速检测 - VP8X 标志位: 0x\(String(format: "%02X", flags)), 动画标志: \(hasAnimationFlag)")
+                }
+                
+                // 如果文件头显示有动画，先设置标识
+                if hasAnimationFlag {
+                    await MainActor.run {
+                        mediaItem.isAnimatedWebP = true
+                        mediaItem.webpFrameCount = 0  // 暂时未知
+                    }
+                }
+                
+                // 然后在后台获取准确帧数
+                Task {
+                    let startTime = Date()
+                    print("🔍 [LoadImage] 开始后台检测准确帧数，文件大小: \(data.count) bytes")
+                    
+                    if let animatedImage = SDAnimatedImage(data: data) {
+                        let count = animatedImage.animatedImageFrameCount
+                        let isAnimated = count > 1
+                        let frameCount = Int(count)
+                        
+                        let elapsed = Date().timeIntervalSince(startTime)
+                        print("📊 [LoadImage] SDAnimatedImage 检测完成 (\(String(format: "%.2f", elapsed))s) - 动画: \(isAnimated), 帧数: \(frameCount)")
+                        
+                        await MainActor.run {
+                            mediaItem.isAnimatedWebP = isAnimated
+                            mediaItem.webpFrameCount = frameCount
+                        }
+                    } else {
+                        print("⚠️ [LoadImage] SDAnimatedImage 初始化失败，保持文件头检测结果")
+                    }
+                }
             }
         }
     }

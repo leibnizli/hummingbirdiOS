@@ -208,9 +208,15 @@ struct CompressionItemRow: View {
                                     HStack(spacing: 2) {
                                         Image(systemName: "play.circle.fill")
                                             .font(.caption2)
-                                        Text("\(item.webpFrameCount) frames")
-                                            .font(.caption2)
-                                            .fontWeight(.medium)
+                                        if item.webpFrameCount > 0 {
+                                            Text("\(item.webpFrameCount) frames")
+                                                .font(.caption2)
+                                                .fontWeight(.medium)
+                                        } else {
+                                            Text("Animated")
+                                                .font(.caption2)
+                                                .fontWeight(.medium)
+                                        }
                                     }
                                     .foregroundStyle(.blue)
                                     .padding(.horizontal, 6)
