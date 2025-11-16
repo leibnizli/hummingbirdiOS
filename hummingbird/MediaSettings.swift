@@ -464,9 +464,11 @@ class CompressionSettings: ObservableObject {
         command += " -c:v \(effectiveCodec.ffmpegCodec)"
         
         // Quality preset
+        // hevc_videotoolbox不支持
         command += " -preset \(videoQualityPreset.ffmpegPreset)"
         
         // CRF quality control (constant quality mode)
+        // hevc_videotoolbox不支持
         let crfValue = getCRFValue()
         command += " -crf \(crfValue)"
         
@@ -521,12 +523,30 @@ class CompressionSettings: ObservableObject {
         // Pixel format - ensure compatibility
         command += " -pix_fmt yuv420p"
         
-        // Video tag - for HEVC, add compatibility tag
-        if effectiveCodec == .h265 {
-            command += " -tag:v hvc1"  // Use hvc1 tag for better compatibility
+        //hev1 10-bit兼容性不好， 10-bit DV 视频应该用 hev1 标签
+//        ffmpeg -hwaccel auto -i "d1.mp4" \
+//        -c:v hevc_videotoolbox -preset medium -crf 32 -r 23.98 \
+//        -x265-params "profile=main10:hdr-opt=1:repeat-headers=1" \
+//        -c:a aac -b:a 128k \
+//        -pix_fmt yuv420p10le \
+//        -tag:v hev1 \
+//        -movflags +faststart \
+//        "d7.mp4"
+        if effectiveCodec == .h264 {
+            //
+            command += " -tag:v avc1"  // Use hvc1 tag for better compatibility
         }
         
+        // Video tag - for HEVC, add compatibility tag
+        if effectiveCodec == .h265 {
+            //hvc1 标签用于 8-bit HEVC MP4
+            //hvc1 标准 HEVC 流，兼容 QuickTime/MP4、iOS 播放
+            command += " -tag:v hvc1"  // Use hvc1 tag for better compatibility
+        }
+
+        
         // Keep metadata and optimize
+        // 支持 边下边播（progressive streaming）
         command += " -movflags +faststart"
         
         // Output file
