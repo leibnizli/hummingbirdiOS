@@ -18,6 +18,7 @@ class FFmpegVideoCompressor {
         settings: CompressionSettings,
         originalFrameRate: Double? = nil,
         originalResolution: CGSize? = nil,
+        originalBitDepth: Int? = nil,
         progressHandler: @escaping (Float) -> Void,
         completion: @escaping (Result<URL, Error>) -> Void
     ) {
@@ -30,7 +31,8 @@ class FFmpegVideoCompressor {
             inputPath: inputURL.path,
             outputPath: outputURL.path,
             videoSize: originalResolution,
-            originalFrameRate: originalFrameRate
+            originalFrameRate: originalFrameRate,
+            originalBitDepth: originalBitDepth
         )
         
         print("🎬 [FFmpeg] Starting video compression")

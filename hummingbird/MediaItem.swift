@@ -55,6 +55,10 @@ class MediaItem: Identifiable, ObservableObject {
     
     // Compressed video codec
     @Published var compressedVideoCodec: String?
+
+    // Video pixel format and bit depth
+    @Published var videoPixelFormat: String?
+    @Published var videoBitDepth: Int?
     
     // Video bitrate (kbps)
     @Published var videoBitrate: Int?
@@ -175,6 +179,39 @@ class MediaItem: Identifiable, ObservableObject {
             return String(format: "%.1f Mbps", Double(bitrate) / 1000.0)
         }
         return "\(bitrate) kbps"
+    }
+
+    func formatVideoBitDepth(_ bitDepth: Int?) -> String {
+        guard let bitDepth = bitDepth, bitDepth > 0 else { return "Unknown" }
+        return "\(bitDepth)-bit"
+    }
+
+    static func deriveBitDepth(pixelFormat: String?, bitsPerRawSample: Int?) -> Int? {
+        if let bits = bitsPerRawSample, bits > 0 {
+            return bits
+        }
+        guard let format = pixelFormat?.lowercased() else {
+            return nil
+        }
+
+        let patterns: [(String, Int)] = [
+            ("p16", 16), ("p016", 16), ("16le", 16),
+            ("p14", 14), ("14le", 14),
+            ("p12", 12), ("12le", 12), ("p412", 12),
+            ("p10", 10), ("p010", 10), ("p210", 10), ("10le", 10)
+        ]
+
+        for (pattern, depth) in patterns {
+            if format.contains(pattern) {
+                return depth
+            }
+        }
+
+        if format.contains("nv12") || format.contains("yuv") || format.contains("420") {
+            return 8
+        }
+
+        return nil
     }
     
     // Format audio sample rate

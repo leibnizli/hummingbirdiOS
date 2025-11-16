@@ -506,7 +506,8 @@ struct CompressionViewVideo: View {
             let durationValid = (mediaItem.duration ?? 0) > 0.0
             let frameRateValid = (mediaItem.frameRate ?? 0) > 0.0
             let resolutionValid = mediaItem.originalResolution != nil
-            return !durationValid || !frameRateValid || !resolutionValid
+            let pixelFormatValid = mediaItem.videoPixelFormat != nil || mediaItem.videoBitDepth != nil
+            return !durationValid || !frameRateValid || !resolutionValid || !pixelFormatValid
         }()
         
         if needsFallback {
@@ -615,6 +616,15 @@ struct CompressionViewVideo: View {
             if (mediaItem.frameRate ?? 0) <= 0, let fps = info.frameRate {
                 mediaItem.frameRate = fps
             }
+            if let pixelFormat = info.pixelFormat {
+                mediaItem.videoPixelFormat = pixelFormat
+            }
+            if mediaItem.videoBitDepth == nil || mediaItem.videoBitDepth == 0 {
+                mediaItem.videoBitDepth = MediaItem.deriveBitDepth(
+                    pixelFormat: info.pixelFormat,
+                    bitsPerRawSample: info.bitsPerRawSample
+                )
+            }
         }
     }
 
@@ -623,6 +633,8 @@ struct CompressionViewVideo: View {
         let height: Int?
         let duration: Double?
         let frameRate: Double?
+        let pixelFormat: String?
+        let bitsPerRawSample: Int?
     }
 
     private func fetchFFprobeVideoInfo(url: URL) async -> FFprobeVideoInfo? {
@@ -636,6 +648,8 @@ struct CompressionViewVideo: View {
                 var width: Int?
                 var height: Int?
                 var fps: Double?
+                var pixelFormat: String?
+                var bitsPerRawSample: Int?
                 if let streams = info.getStreams() as? [StreamInformation] {
                     if let videoStream = streams.first(where: { ($0.getType() ?? "") == "video" }) {
                         if let widthValue = videoStream.getWidth()?.intValue {
@@ -649,13 +663,29 @@ struct CompressionViewVideo: View {
                         } else if let frameRateString = videoStream.getRealFrameRate(), !frameRateString.isEmpty {
                             fps = parseFrameRate(frameRateString)
                         }
+
+                        let pixelFormatCandidates: [String?] = [
+                            videoStream.getStringProperty("pix_fmt"),
+                            videoStream.getStringProperty("pixel_format"),
+                            videoStream.getStringProperty("pixel_format_name")
+                        ]
+                        pixelFormat = pixelFormatCandidates
+                            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                            .first(where: { !$0.isEmpty })
+
+                        if let bitsString = videoStream.getStringProperty("bits_per_raw_sample"),
+                           let value = Int(bitsString) {
+                            bitsPerRawSample = value
+                        }
                     }
                 }
                 continuation.resume(returning: FFprobeVideoInfo(
                     width: width,
                     height: height,
                     duration: duration > 0 ? duration : nil,
-                    frameRate: (fps ?? 0) > 0 ? fps : nil
+                    frameRate: (fps ?? 0) > 0 ? fps : nil,
+                    pixelFormat: pixelFormat,
+                    bitsPerRawSample: bitsPerRawSample
                 ))
             }
         }
@@ -792,6 +822,7 @@ struct CompressionViewVideo: View {
                 outputFileType: desiredOutputFileType,
                 originalFrameRate: item.frameRate,
                 originalResolution: item.originalResolution,
+                originalBitDepth: item.videoBitDepth,
                 progressHandler: { progress in
                     Task { @MainActor in
                         item.progress = progress

@@ -467,7 +467,13 @@ class CompressionSettings: ObservableObject {
     }
     
     // Generate FFmpeg command parameters
-    func generateFFmpegCommand(inputPath: String, outputPath: String, videoSize: CGSize? = nil, originalFrameRate: Double? = nil) -> String {
+    func generateFFmpegCommand(
+        inputPath: String,
+        outputPath: String,
+        videoSize: CGSize? = nil,
+        originalFrameRate: Double? = nil,
+        originalBitDepth: Int? = nil
+    ) -> String {
         var command = ""
         
         // Always enable hardware acceleration before input when using VideoToolbox encoders
@@ -562,34 +568,24 @@ class CompressionSettings: ObservableObject {
         
         // Audio encoding
         command += " -c:a aac -b:a 128k"
-        
-        // Pixel format - ensure compatibility
-        command += " -pix_fmt yuv420p"
-        
-        //hev1 10-bit兼容性不好， 10-bit DV 视频应该用 hev1 标签
-//        ffmpeg -hwaccel auto -i "d1.mp4" \
-//        -c:v hevc_videotoolbox -preset medium -crf 32 -r 23.98 \
-//        -x265-params "profile=main10:hdr-opt=1:repeat-headers=1" \
-//        -c:a aac -b:a 128k \
-//        -pix_fmt yuv420p10le \
-//        -tag:v hev1 \
-//        -movflags +faststart \
-//        "d7.mp4"
-        if effectiveCodec == .h264 {
-            //
-            command += " -tag:v avc1"  // Use hvc1 tag for better compatibility
+
+        let useTenBitHEVC = effectiveCodec == .h265 && (originalBitDepth ?? 8) >= 10
+        if useTenBitHEVC {
+            command += " -pix_fmt p010le -profile:v main10"
+            print("🎬 [FFmpeg] Preserving 10-bit HEVC output (profile main10)")
+        } else {
+            command += " -pix_fmt yuv420p"
         }
-        
-        // Video tag - for HEVC, add compatibility tag
-        if effectiveCodec == .h265 {
-            //hvc1 标签用于 8-bit HEVC MP4
-            //hvc1 标准 HEVC 流，兼容 QuickTime/MP4、iOS 播放
-            command += " -tag:v hvc1"  // Use hvc1 tag for better compatibility
+
+        if effectiveCodec == .h264 {
+            command += " -tag:v avc1"  // Use avc1 tag for H.264 (AVC)
+        } else if effectiveCodec == .h265 {
+            let hevcTag = useTenBitHEVC ? "hev1" : "hvc1"
+            command += " -tag:v \(hevcTag)"  // Adjust sample entry for HEVC compatibility
         }
 
         
-        // Keep metadata and optimize
-        // 支持 边下边播（progressive streaming）
+        // Enable fast start for progressive streaming
         command += " -movflags +faststart"
         
         // Output file

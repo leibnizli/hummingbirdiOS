@@ -425,6 +425,12 @@ struct CompressionItemRow: View {
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
+
+                                    if let bitDepth = item.videoBitDepth {
+                                        Text("Bit Depth: \(item.formatVideoBitDepth(bitDepth))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                                 
                                 HStack {
@@ -503,6 +509,12 @@ struct CompressionItemRow: View {
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
+
+                                    if let bitDepth = item.videoBitDepth {
+                                        Text("Bit Depth: \(item.formatVideoBitDepth(bitDepth))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                         }
@@ -534,8 +546,8 @@ struct CompressionItemRow: View {
                 if item.status == .completed {
                     VStack(spacing: 8) {
                         HStack(spacing: 8) {
-                            // Photos 按钮（仅图片和视频）
-                            if !item.isAudio {
+                            // Photos 按钮（仅图片和视频，排除10-bit视频）
+                            if shouldShowPhotosButton {
                                 Button(action: { saveToPhotos(item) }) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "photo.badge.arrow.down")
@@ -849,6 +861,18 @@ struct CompressionItemRow: View {
         }
         
         rootViewController.present(activityVC, animated: true)
+    }
+}
+
+private extension CompressionItemRow {
+    var shouldShowPhotosButton: Bool {
+        if item.isAudio {
+            return false
+        }
+        if item.isVideo, item.videoBitDepth == 10 {
+            return false
+        }
+        return true
     }
 }
 
