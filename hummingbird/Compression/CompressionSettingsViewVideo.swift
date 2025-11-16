@@ -101,38 +101,38 @@ struct CompressionSettingsViewVideo: View {
                         }
                         
                         // Quality preset
-                        Picker("Encoding Speed", selection: $settings.videoQualityPreset) {
-                            ForEach(VideoQualityPreset.allCases) { preset in
-                                Text(preset.rawValue).tag(preset)
-                            }
-                        }
-                        
-                        // CRF quality mode
-                        Picker("Quality Level", selection: $settings.crfQualityMode) {
-                            ForEach(CRFQualityMode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
-                            }
-                        }
-                        
-                        // Custom CRF
-                        if settings.crfQualityMode == .custom {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("CRF Value")
-                                    Spacer()
-                                    Text("\(settings.customCRF)")
-                                        .foregroundStyle(.secondary)
-                                }
-                                Slider(value: Binding(
-                                    get: { Double(settings.customCRF) },
-                                    set: { settings.customCRF = Int($0) }
-                                ), in: 0...51, step: 1)
-                                
-                                Text("Lower CRF value means better quality but larger file size. Recommended range: 18-28")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+//                        Picker("Encoding Speed", selection: $settings.videoQualityPreset) {
+//                            ForEach(VideoQualityPreset.allCases) { preset in
+//                                Text(preset.rawValue).tag(preset)
+//                            }
+//                        }
+//                        
+//                        // CRF quality mode
+//                        Picker("Quality Level", selection: $settings.crfQualityMode) {
+//                            ForEach(CRFQualityMode.allCases) { mode in
+//                                Text(mode.rawValue).tag(mode)
+//                            }
+//                        }
+//                        
+//                        // Custom CRF
+//                        if settings.crfQualityMode == .custom {
+//                            VStack(alignment: .leading, spacing: 8) {
+//                                HStack {
+//                                    Text("CRF Value")
+//                                    Spacer()
+//                                    Text("\(settings.customCRF)")
+//                                        .foregroundStyle(.secondary)
+//                                }
+//                                Slider(value: Binding(
+//                                    get: { Double(settings.customCRF) },
+//                                    set: { settings.customCRF = Int($0) }
+//                                ), in: 0...51, step: 1)
+//                                
+//                                Text("Lower CRF value means better quality but larger file size. Recommended range: 18-28")
+//                                    .font(.caption)
+//                                    .foregroundStyle(.secondary)
+//                            }
+//                        }
                         
                         // Hardware decode acceleration
                         VStack(alignment: .leading, spacing: 4) {
@@ -143,7 +143,7 @@ struct CompressionSettingsViewVideo: View {
                                 .foregroundStyle(.secondary)
                         }
                     } header: {
-                        Text("Codec & Quality (FFmpeg)")
+                        Text("Codec & Quality")
                     } footer: {
                         Text("H.265 provides higher compression ratio but requires more processing time. CRF mode (recommended) provides stable quality. Slower encoding speed results in better compression.")
                     }
