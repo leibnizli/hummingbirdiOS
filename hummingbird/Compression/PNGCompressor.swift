@@ -33,7 +33,7 @@ extension PNGCompressor {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
 
-                let result: PNGCompressionResult? = pngData.withUnsafeBytes { (origBuf: UnsafeRawBufferPointer) in
+                let result: PNGCompressionResult? = pngData.withUnsafeBytes { (origBuf: UnsafeRawBufferPointer) -> PNGCompressionResult? in
                     guard let base = origBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return nil }
                     var options = CZopfliPNGOptions()
                     CZopfliPNGSetDefaults(&options)
@@ -41,6 +41,18 @@ extension PNGCompressor {
                     // Apply compression settings
                     options.num_iterations = Int32(numIterations)
                     options.num_iterations_large = Int32(numIterationsLarge)
+                    
+                    // Set filter strategies: --filters=0me (None, MinSum, Entropy)
+                    // 0 = kStrategyZero, 5 = kStrategyMinSum, 6 = kStrategyEntropy
+                    var strategies: [ZopfliPNGFilterStrategy] = [
+                        ZopfliPNGFilterStrategy(rawValue: 0),  // kStrategyZero
+                        ZopfliPNGFilterStrategy(rawValue: 5),  // kStrategyMinSum
+                        ZopfliPNGFilterStrategy(rawValue: 6)   // kStrategyEntropy
+                    ]
+                    let strategiesPtr = UnsafeMutablePointer<ZopfliPNGFilterStrategy>.allocate(capacity: strategies.count)
+                    strategiesPtr.initialize(from: strategies, count: strategies.count)
+                    options.filter_strategies = strategiesPtr
+                    options.num_filter_strategies = Int32(strategies.count)
 
                     // Detect image properties to avoid enabling lossy options that don't apply
                     let cg = image.cgImage
@@ -70,12 +82,14 @@ extension PNGCompressor {
                     options.use_zopfli = 1  // Always use Zopfli for best compression
                     
                     // Log all applied options for debugging
-                    print("🔧 PNGCompressor CZopfliPNGOptions:")
+                    print("🔧 PNGCompressor CZopfliPNGOptions (compressWithOriginalData):")
                     print("  num_iterations: \(options.num_iterations)")
                     print("  num_iterations_large: \(options.num_iterations_large)")
                     print("  lossy_transparent: \(options.lossy_transparent)")
                     print("  lossy_8bit: \(options.lossy_8bit)")
                     print("  use_zopfli: \(options.use_zopfli)")
+                    print("  filter_strategies: 0me (None, MinSum, Entropy)")
+                    print("  num_filter_strategies: \(options.num_filter_strategies)")
 
                     var resultPtr: UnsafeMutablePointer<UInt8>? = nil
                     var resultSize: size_t = 0
@@ -86,6 +100,9 @@ extension PNGCompressor {
                                                  0,
                                                  &resultPtr,
                                                  &resultSize)
+                    
+                    // Free filter strategies memory
+                    options.filter_strategies?.deallocate()
 
                     guard ret == 0, let rptr = resultPtr, resultSize > 0 else {
                         return nil
@@ -124,7 +141,7 @@ extension PNGCompressor {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
 
-                let result: PNGCompressionResult? = pngData.withUnsafeBytes { (origBuf: UnsafeRawBufferPointer) in
+                let result: PNGCompressionResult? = pngData.withUnsafeBytes { (origBuf: UnsafeRawBufferPointer) -> PNGCompressionResult? in
                     guard let base = origBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return nil }
                     var options = CZopfliPNGOptions()
                     CZopfliPNGSetDefaults(&options)
@@ -132,6 +149,18 @@ extension PNGCompressor {
                     // Apply compression settings
                     options.num_iterations = Int32(numIterations)
                     options.num_iterations_large = Int32(numIterationsLarge)
+                    
+                    // Set filter strategies: --filters=0me (None, MinSum, Entropy)
+                    // 0 = kStrategyZero, 5 = kStrategyMinSum, 6 = kStrategyEntropy
+                    var strategies: [ZopfliPNGFilterStrategy] = [
+                        ZopfliPNGFilterStrategy(rawValue: 0),  // kStrategyZero
+                        ZopfliPNGFilterStrategy(rawValue: 5),  // kStrategyMinSum
+                        ZopfliPNGFilterStrategy(rawValue: 6)   // kStrategyEntropy
+                    ]
+                    let strategiesPtr = UnsafeMutablePointer<ZopfliPNGFilterStrategy>.allocate(capacity: strategies.count)
+                    strategiesPtr.initialize(from: strategies, count: strategies.count)
+                    options.filter_strategies = strategiesPtr
+                    options.num_filter_strategies = Int32(strategies.count)
 
                     // Detect image properties to avoid enabling lossy options that don't apply
                     let cg = image.cgImage
@@ -161,12 +190,14 @@ extension PNGCompressor {
                     options.use_zopfli = 1  // Always use Zopfli for best compression
                     
                     // Log all applied options for debugging
-                    print("🔧 PNGCompressor CZopfliPNGOptions:")
+                    print("🔧 PNGCompressor CZopfliPNGOptions (compress):")
                     print("  num_iterations: \(options.num_iterations)")
                     print("  num_iterations_large: \(options.num_iterations_large)")
                     print("  lossy_transparent: \(options.lossy_transparent)")
                     print("  lossy_8bit: \(options.lossy_8bit)")
                     print("  use_zopfli: \(options.use_zopfli)")
+                    print("  filter_strategies: 0me (None, MinSum, Entropy)")
+                    print("  num_filter_strategies: \(options.num_filter_strategies)")
 
                     var resultPtr: UnsafeMutablePointer<UInt8>? = nil
                     var resultSize: size_t = 0
@@ -177,6 +208,9 @@ extension PNGCompressor {
                                                  0,
                                                  &resultPtr,
                                                  &resultSize)
+                    
+                    // Free filter strategies memory
+                    options.filter_strategies?.deallocate()
 
                     guard ret == 0, let rptr = resultPtr, resultSize > 0 else {
                         return nil

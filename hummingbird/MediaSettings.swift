@@ -270,10 +270,10 @@ class CompressionSettings: ObservableObject {
     }
     
     // PNG compression settings (zopflipng parameters)
-    @Published var pngNumIterations: Int = 15 {
+    @Published var pngNumIterations: Int = 3 {
         didSet { UserDefaults.standard.set(pngNumIterations, forKey: "pngNumIterations") }
     }
-    @Published var pngNumIterationsLarge: Int = 5 {
+    @Published var pngNumIterationsLarge: Int = 1 {
         didSet { UserDefaults.standard.set(pngNumIterationsLarge, forKey: "pngNumIterationsLarge") }
     }
     @Published var pngLossyTransparent: Bool = false {

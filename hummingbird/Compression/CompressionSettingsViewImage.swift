@@ -121,7 +121,7 @@ struct CompressionSettingsViewImage: View {
                             Slider(value: Binding(
                                 get: { Double(settings.pngNumIterations) },
                                 set: { settings.pngNumIterations = Int($0) }
-                            ), in: 1...50, step: 1)
+                            ), in: 1...5, step: 1)
                             Text("Used for images smaller than 1MB. Higher values = smaller file size, but slower compression. Default: 15 iterations.")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -137,7 +137,7 @@ struct CompressionSettingsViewImage: View {
                             Slider(value: Binding(
                                 get: { Double(settings.pngNumIterationsLarge) },
                                 set: { settings.pngNumIterationsLarge = Int($0) }
-                            ), in: 1...50, step: 1)
+                            ), in: 1...3, step: 1)
                             Text("Used for images 1MB or larger. Usually set lower than small image iterations to balance compression vs time. Default: 5 iterations.")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
