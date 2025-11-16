@@ -106,6 +106,9 @@ struct CompressionSettingsViewVideo: View {
                                 Text("Hardware bitrate is derived from the target resolution: 720p≈1.5 Mbps, 1080p≈3 Mbps, 2K≈5 Mbps, 4K≈8 Mbps. If you keep the original resolution, we estimate using the source dimensions.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                Text("Note: The actual bitrate may be lower than the estimated value. VideoToolbox dynamically adjusts based on content complexity to optimize efficiency.")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
                             } else {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
@@ -121,6 +124,9 @@ struct CompressionSettingsViewVideo: View {
                                     Text("Custom bitrate for VideoToolbox hardware encoder (500-15000 kbps). Higher values preserve more detail but increase file size.")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    Text("Note: The actual bitrate may be lower than the target value. VideoToolbox dynamically adjusts based on content complexity to optimize efficiency.")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
                                 }
                             }
                         }

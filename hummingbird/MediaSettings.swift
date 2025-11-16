@@ -545,13 +545,19 @@ class CompressionSettings: ObservableObject {
             }
         }
         
-        // Frame rate control - only reduce frame rate if target is lower than original
+        // Frame rate control - only reduce frame rate if needed
         let targetFPS = getTargetFrameRate()
-        if let originalFPS = originalFrameRate, targetFPS < originalFPS {
+        if let originalFPS = originalFrameRate {
+            if targetFPS < originalFPS {
+                command += " -r \(targetFPS)"
+                print("🎬 [FFmpeg] Reducing frame rate from \(originalFPS) fps to \(targetFPS) fps")
+            } else {
+                print("🎬 [FFmpeg] Keeping original frame rate \(originalFPS) fps")
+            }
+        } else {
+            // No original frame rate info, apply target unconditionally
             command += " -r \(targetFPS)"
-            print("🎬 [FFmpeg] Reducing frame rate from \(originalFPS) fps to \(targetFPS) fps")
-        } else if let originalFPS = originalFrameRate {
-            print("🎬 [FFmpeg] Keeping original frame rate \(originalFPS) fps (target: \(targetFPS) fps)")
+            print("🎬 [FFmpeg] Setting frame rate to \(targetFPS) fps")
         }
         
         // Audio encoding
