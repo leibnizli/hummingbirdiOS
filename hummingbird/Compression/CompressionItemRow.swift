@@ -365,6 +365,32 @@ struct CompressionItemRow: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     
+                                    // 显示比特率变化
+                                    if let compressedBitrate = item.compressedVideoBitrate {
+                                        if let originalBitrate = item.videoBitrate {
+                                            // 原始和压缩后都有值
+                                            if abs(originalBitrate - compressedBitrate) > 100 {
+                                                Text("Bitrate: \(item.formatVideoBitrate(originalBitrate)) → \(item.formatVideoBitrate(compressedBitrate))")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            } else {
+                                                Text("Bitrate: \(item.formatVideoBitrate(originalBitrate))")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        } else {
+                                            // 原始未知，但压缩后检测到了
+                                            Text("Bitrate: Unknown → \(item.formatVideoBitrate(compressedBitrate))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else if let originalBitrate = item.videoBitrate {
+                                        // 只显示原始值
+                                        Text("Bitrate: \(item.formatVideoBitrate(originalBitrate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
                                     // 显示帧率变化
                                     if let originalFPS = item.frameRate, let compressedFPS = item.compressedFrameRate {
                                         // 判断帧率是否有变化（允许0.1的误差）
@@ -445,6 +471,13 @@ struct CompressionItemRow: View {
                                     Text("Duration: \(item.formatDuration(item.duration))")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    
+                                    // 显示比特率
+                                    if let originalBitrate = item.videoBitrate {
+                                        Text("Bitrate: \(item.formatVideoBitrate(originalBitrate))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                     
                                     // 显示帧率变化
                                     if let originalFPS = item.frameRate, let compressedFPS = item.compressedFrameRate {

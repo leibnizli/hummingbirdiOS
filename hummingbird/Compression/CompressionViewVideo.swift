@@ -475,9 +475,18 @@ struct CompressionViewVideo: View {
                 // 获取帧率
                 let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
                 
+                // 获取比特率（估算值，单位为 bits per second）
+                let estimatedDataRate = try await videoTrack.load(.estimatedDataRate)
+                
                 await MainActor.run {
                     mediaItem.originalResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
                     mediaItem.frameRate = Double(nominalFrameRate)
+                    
+                    // 转换为 kbps
+                    if estimatedDataRate > 0 {
+                        mediaItem.videoBitrate = Int(estimatedDataRate / 1000)
+                        print("🎬 [Video Bitrate] Original: \(mediaItem.videoBitrate ?? 0) kbps")
+                    }
                 }
             }
             
@@ -869,10 +878,17 @@ struct CompressionViewVideo: View {
                                         let transform = try await videoTrack.load(.preferredTransform)
                                         let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
                                         let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
+                                        let estimatedDataRate = try await videoTrack.load(.estimatedDataRate)
                                         
                                         await MainActor.run {
                                             item.compressedResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
                                             item.compressedFrameRate = Double(nominalFrameRate)
+                                            
+                                            // 记录压缩后比特率
+                                            if estimatedDataRate > 0 {
+                                                item.compressedVideoBitrate = Int(estimatedDataRate / 1000)
+                                                print("🎬 [Video Bitrate] Compressed: \(item.compressedVideoBitrate ?? 0) kbps")
+                                            }
                                         }
                                     }
                                 } catch {

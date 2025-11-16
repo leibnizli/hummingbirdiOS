@@ -310,9 +310,6 @@ class CompressionSettings: ObservableObject {
     @Published var customCRF: Int = 23 {
         didSet { UserDefaults.standard.set(customCRF, forKey: "customCRF") }
     }
-    @Published var useHardwareAcceleration: Bool = true {
-        didSet { UserDefaults.standard.set(useHardwareAcceleration, forKey: "useHardwareAcceleration") }
-    }
     @Published var frameRateMode: FrameRateMode = .fps29_97 {
         didSet { UserDefaults.standard.set(frameRateMode.rawValue, forKey: "frameRateMode") }
     }
@@ -324,6 +321,12 @@ class CompressionSettings: ObservableObject {
     }
     @Published var targetOrientationMode: VideoOrientationMode = .auto {
         didSet { UserDefaults.standard.set(targetOrientationMode.rawValue, forKey: "targetOrientationMode") }
+    }
+    @Published var useAutoBitrate: Bool = true {
+        didSet { UserDefaults.standard.set(useAutoBitrate, forKey: "useAutoBitrate") }
+    }
+    @Published var customVideoBitrate: Int = 3000 {
+        didSet { UserDefaults.standard.set(customVideoBitrate, forKey: "customVideoBitrate") }
     }
     
     init() {
@@ -380,9 +383,6 @@ class CompressionSettings: ObservableObject {
         if UserDefaults.standard.object(forKey: "customCRF") != nil {
             self.customCRF = UserDefaults.standard.integer(forKey: "customCRF")
         }
-        if UserDefaults.standard.object(forKey: "useHardwareAcceleration") != nil {
-            self.useHardwareAcceleration = UserDefaults.standard.bool(forKey: "useHardwareAcceleration")
-        }
         if let modeRaw = UserDefaults.standard.string(forKey: "frameRateMode"),
            let mode = FrameRateMode(rawValue: modeRaw) {
             self.frameRateMode = mode
@@ -397,6 +397,12 @@ class CompressionSettings: ObservableObject {
         if let orientationRaw = UserDefaults.standard.string(forKey: "targetOrientationMode"),
            let orientation = VideoOrientationMode(rawValue: orientationRaw) {
             self.targetOrientationMode = orientation
+        }
+        if UserDefaults.standard.object(forKey: "useAutoBitrate") != nil {
+            self.useAutoBitrate = UserDefaults.standard.bool(forKey: "useAutoBitrate")
+        }
+        if UserDefaults.standard.object(forKey: "customVideoBitrate") != nil {
+            self.customVideoBitrate = UserDefaults.standard.integer(forKey: "customVideoBitrate")
         }
         
         // Load audio settings
@@ -426,6 +432,32 @@ class CompressionSettings: ObservableObject {
         return customCRF
     }
     
+    func getVideoBitrate(targetSize: CGSize?, originalSize: CGSize?) -> Int {
+        // If auto bitrate is disabled, return custom value
+        if !useAutoBitrate {
+            return max(500, customVideoBitrate)
+        }
+        
+        // Prefer target resolution, fall back to original size, then default to 1080p
+        let fallbackSize = CGSize(width: 1920, height: 1080)
+        let referenceSize = targetSize ?? originalSize ?? fallbackSize
+        let pixelCount = Double(referenceSize.width * referenceSize.height)
+        let hdThreshold = Double(1280 * 720)
+        let fullHDThreshold = Double(1920 * 1080)
+        let twoKThreshold = Double(2560 * 1440)
+        
+        // Lower bitrates for better compression while maintaining acceptable quality
+        if pixelCount <= hdThreshold {
+            return 1500  // 720p: 1.5 Mbps
+        } else if pixelCount <= fullHDThreshold {
+            return 3000  // 1080p: 3 Mbps
+        } else if pixelCount <= twoKThreshold {
+            return 5000  // 2K: 5 Mbps
+        } else {
+            return 8000  // 4K: 8 Mbps
+        }
+    }
+    
     // Get target frame rate
     func getTargetFrameRate() -> Double {
         if let frameRate = frameRateMode.frameRateValue {
@@ -438,10 +470,8 @@ class CompressionSettings: ObservableObject {
     func generateFFmpegCommand(inputPath: String, outputPath: String, videoSize: CGSize? = nil, originalFrameRate: Double? = nil) -> String {
         var command = ""
         
-        // Hardware acceleration (must be before -i)
-        if useHardwareAcceleration {
-            command += "-hwaccel auto "
-        }
+        // Always enable hardware acceleration before input when using VideoToolbox encoders
+        command += "-hwaccel auto "
         
         // Input file
         command += "-i \"\(inputPath)\""
@@ -460,20 +490,27 @@ class CompressionSettings: ObservableObject {
             effectiveCodec = videoCodec
         }
         
+        // Compute target scaling size once for both bitrate estimation and optional scaling
+        let resolvedTargetSize = targetVideoResolution.size(for: targetOrientationMode, originalSize: videoSize)
+        
         // Video codec
         command += " -c:v \(effectiveCodec.ffmpegCodec)"
         
-        // Quality preset
-        // hevc_videotoolbox不支持
-        command += " -preset \(videoQualityPreset.ffmpegPreset)"
-        
-        // CRF quality control (constant quality mode)
-        // hevc_videotoolbox不支持
-        let crfValue = getCRFValue()
-        command += " -crf \(crfValue)"
+        // Quality control: VideoToolbox uses bitrate parameters while software encoders keep preset/CRF
+        let codecIdentifier = effectiveCodec.ffmpegCodec.lowercased()
+        if codecIdentifier.contains("videotoolbox") {
+            let targetKbps = getVideoBitrate(targetSize: resolvedTargetSize, originalSize: videoSize)
+            let maxrate = Int(Double(targetKbps) * 1.2)
+            let bufsize = Int(Double(targetKbps) * 2.0)
+            command += " -b:v \(targetKbps)k -maxrate \(maxrate)k -bufsize \(bufsize)k"
+        } else {
+            command += " -preset \(videoQualityPreset.ffmpegPreset)"
+            let crfValue = getCRFValue()
+            command += " -crf \(crfValue)"
+        }
         
         // Resolution scaling - only scale down if target is smaller than original
-        if let originalSize = videoSize, let targetSize = targetVideoResolution.size(for: targetOrientationMode, originalSize: originalSize) {
+        if let originalSize = videoSize, let targetSize = resolvedTargetSize {
             let originalWidth = originalSize.width
             let originalHeight = originalSize.height
             let targetWidth = targetSize.width

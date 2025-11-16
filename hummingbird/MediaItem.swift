@@ -56,6 +56,10 @@ class MediaItem: Identifiable, ObservableObject {
     // Compressed video codec
     @Published var compressedVideoCodec: String?
     
+    // Video bitrate (kbps)
+    @Published var videoBitrate: Int?
+    @Published var compressedVideoBitrate: Int?
+    
     // Audio metadata (for audio files)
     @Published var audioBitrate: Int?  // kbps
     @Published var audioSampleRate: Int?  // Hz
@@ -161,6 +165,15 @@ class MediaItem: Identifiable, ObservableObject {
     // Format audio bitrate
     func formatAudioBitrate(_ bitrate: Int?) -> String {
         guard let bitrate = bitrate, bitrate > 0 else { return "Unknown" }
+        return "\(bitrate) kbps"
+    }
+    
+    // Format video bitrate
+    func formatVideoBitrate(_ bitrate: Int?) -> String {
+        guard let bitrate = bitrate, bitrate > 0 else { return "Unknown" }
+        if bitrate >= 1000 {
+            return String(format: "%.1f Mbps", Double(bitrate) / 1000.0)
+        }
         return "\(bitrate) kbps"
     }
     

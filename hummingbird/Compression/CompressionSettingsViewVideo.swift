@@ -21,18 +21,14 @@ struct CompressionSettingsViewVideo: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Content
                 Form {
-                    // Video Settings
                     Section {
-                        // Target resolution
                         Picker("Target Resolution", selection: $settings.targetVideoResolution) {
                             ForEach(VideoResolution.allCases) { resolution in
                                 Text(resolution.displayName).tag(resolution)
                             }
                         }
                         
-                        // Target orientation mode
                         if settings.targetVideoResolution != .original {
                             Picker("Target Orientation", selection: $settings.targetOrientationMode) {
                                 ForEach(VideoOrientationMode.allCases) { mode in
@@ -40,7 +36,6 @@ struct CompressionSettingsViewVideo: View {
                                 }
                             }
                             
-                            // Explanation text
                             VStack(alignment: .leading, spacing: 4) {
                                 if settings.targetOrientationMode == .auto {
                                     Text("Auto: Target resolution will match the original video's orientation")
@@ -54,14 +49,12 @@ struct CompressionSettingsViewVideo: View {
                             .foregroundStyle(.secondary)
                         }
                         
-                        // Target frame rate
                         Picker("Target Frame Rate", selection: $settings.frameRateMode) {
                             ForEach(FrameRateMode.allCases) { mode in
                                 Text(mode.rawValue).tag(mode)
                             }
                         }
                         
-                        // Custom frame rate slider
                         if settings.frameRateMode == .custom {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
@@ -87,7 +80,6 @@ struct CompressionSettingsViewVideo: View {
                     }
                     
                     Section {
-                        // Video codec
                         VStack(alignment: .leading, spacing: 8) {
                             Picker("Video Codec", selection: $settings.videoCodec) {
                                 ForEach(VideoCodec.allCases) { codec in
@@ -106,52 +98,36 @@ struct CompressionSettingsViewVideo: View {
                                 .foregroundStyle(.secondary)
                         }
                         
-                        // Quality preset
-//                        Picker("Encoding Speed", selection: $settings.videoQualityPreset) {
-//                            ForEach(VideoQualityPreset.allCases) { preset in
-//                                Text(preset.rawValue).tag(preset)
-//                            }
-//                        }
-//                        
-//                        // CRF quality mode
-//                        Picker("Quality Level", selection: $settings.crfQualityMode) {
-//                            ForEach(CRFQualityMode.allCases) { mode in
-//                                Text(mode.rawValue).tag(mode)
-//                            }
-//                        }
-//                        
-//                        // Custom CRF
-//                        if settings.crfQualityMode == .custom {
-//                            VStack(alignment: .leading, spacing: 8) {
-//                                HStack {
-//                                    Text("CRF Value")
-//                                    Spacer()
-//                                    Text("\(settings.customCRF)")
-//                                        .foregroundStyle(.secondary)
-//                                }
-//                                Slider(value: Binding(
-//                                    get: { Double(settings.customCRF) },
-//                                    set: { settings.customCRF = Int($0) }
-//                                ), in: 0...51, step: 1)
-//                                
-//                                Text("Lower CRF value means better quality but larger file size. Recommended range: 18-28")
-//                                    .font(.caption)
-//                                    .foregroundStyle(.secondary)
-//                            }
-//                        }
-                        
-                        // Hardware decode acceleration
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle("Hardware Decode Acceleration", isOn: $settings.useHardwareAcceleration)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Automatic Bitrate", isOn: $settings.useAutoBitrate)
+                                .font(.headline)
                             
-                            Text("Use hardware acceleration to decode input video, improves processing speed")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            if settings.useAutoBitrate {
+                                Text("Hardware bitrate is derived from the target resolution: 720p≈1.5 Mbps, 1080p≈3 Mbps, 2K≈5 Mbps, 4K≈8 Mbps. If you keep the original resolution, we estimate using the source dimensions.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("Custom Bitrate")
+                                        Spacer()
+                                        Text("\(settings.customVideoBitrate) kbps")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Slider(value: Binding(
+                                        get: { Double(settings.customVideoBitrate) },
+                                        set: { settings.customVideoBitrate = Int($0) }
+                                    ), in: 500...15000, step: 100)
+                                    Text("Custom bitrate for VideoToolbox hardware encoder (500-15000 kbps). Higher values preserve more detail but increase file size.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     } header: {
                         Text("Codec & Quality")
                     } footer: {
-                        Text("H.265 provides higher compression ratio but requires more processing time. CRF mode (recommended) provides stable quality. Slower encoding speed results in better compression.")
+                        Text("Higher bitrates improve detail at the cost of larger files. H.265 stays smaller than H.264 but encodes more slowly.")
                     }
                 }
                 .navigationTitle("Video Compression Settings")
