@@ -95,8 +95,7 @@ struct ImageFormatConversionView: View {
                         Text("WebP").tag(ImageFormat.webp)
                         Text("AVIF").tag(ImageFormat.avif)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 360)
+                    .pickerStyle(.menu)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
