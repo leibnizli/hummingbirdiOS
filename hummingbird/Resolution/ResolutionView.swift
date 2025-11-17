@@ -1011,7 +1011,8 @@ struct ResolutionView: View {
                 return
             }
             resizedData = jpegData
-                print("✅ [Resolution Adjustment] JPEG encoding successful - Size: \(resizedData.count) bytes")        case .webp:
+                print("✅ [Resolution Adjustment] JPEG encoding successful - Size: \(resizedData.count) bytes")        
+        case .webp:
             // WebP 格式 - 使用 SDWebImageWebPCoder
             let webpCoder = SDImageWebPCoder.shared
             if let webpData = webpCoder.encodedData(with: image, format: .webP, options: [.encodeCompressionQuality: 0.9]) {
@@ -1029,6 +1030,29 @@ struct ResolutionView: View {
                 }
                 resizedData = jpegData
                 print("✅ [Resolution Adjustment] JPEG encoding successful (WebP fallback) - Size: \(resizedData.count) bytes")
+            }
+            
+        case .avif:
+            // AVIF 格式 - 使用 AVIFCompressor
+            if let result = await AVIFCompressor.compress(
+                image: image,
+                quality: 0.85,
+                speedPreset: .balanced
+            ) {
+                resizedData = result.data
+                print("✅ [Resolution Adjustment] AVIF encoding successful - Size: \(resizedData.count) bytes")
+            } else {
+                // AVIF 编码失败，回退到 JPEG
+                print("⚠️ [Resolution Adjustment] AVIF encoding failed, falling back to JPEG")
+                guard let jpegData = image.jpegData(compressionQuality: 0.9) else {
+                    await MainActor.run {
+                        item.status = .failed
+                        item.errorMessage = "Unable to encode image"
+                    }
+                    return
+                }
+                resizedData = jpegData
+                print("✅ [Resolution Adjustment] JPEG encoding successful (AVIF fallback) - Size: \(resizedData.count) bytes")
             }
         }
         

@@ -1,5 +1,6 @@
 PODS:
   - ffmpeg-kit-ios-full (6.0)
+  - libavif/core (0.11.1)
   - libwebp (1.5.0):
     - libwebp/demux (= 1.5.0)
     - libwebp/mux (= 1.5.0)
@@ -13,7 +14,12 @@ PODS:
   - libwebp/webp (1.5.0):
     - libwebp/sharpyuv
   - mozjpeg (3.3.2)
+  - SDWebImage (5.21.3):
+    - SDWebImage/Core (= 5.21.3)
   - SDWebImage/Core (5.21.3)
+  - SDWebImageAVIFCoder (0.11.1):
+    - libavif/core (>= 0.11.0)
+    - SDWebImage (~> 5.10)
   - SDWebImageWebPCoder (0.14.6):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
@@ -21,10 +27,12 @@ PODS:
 DEPENDENCIES:
   - ffmpeg-kit-ios-full (from `https://raw.githubusercontent.com/luthviar/ffmpeg-kit-ios-full/main/ffmpeg-kit-ios-full.podspec`)
   - mozjpeg (~> 3.3)
+  - SDWebImageAVIFCoder (from `https://github.com/SDWebImage/SDWebImageAVIFCoder.git`, tag `0.11.1`)
   - SDWebImageWebPCoder (~> 0.14.6)
 
 SPEC REPOS:
   trunk:
+    - libavif
     - libwebp
     - mozjpeg
     - SDWebImage
@@ -33,14 +41,24 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   ffmpeg-kit-ios-full:
     :podspec: https://raw.githubusercontent.com/luthviar/ffmpeg-kit-ios-full/main/ffmpeg-kit-ios-full.podspec
+  SDWebImageAVIFCoder:
+    :git: https://github.com/SDWebImage/SDWebImageAVIFCoder.git
+    :tag: 0.11.1
+
+CHECKOUT OPTIONS:
+  SDWebImageAVIFCoder:
+    :git: https://github.com/SDWebImage/SDWebImageAVIFCoder.git
+    :tag: 0.11.1
 
 SPEC CHECKSUMS:
   ffmpeg-kit-ios-full: 2da77324b0e9fb007195ab6661f64be4cf31dc12
+  libavif: 84bbb62fb232c3018d6f1bab79beea87e35de7b7
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   mozjpeg: bbe5f12952c272e10063446feaf7ec09a800c5e3
   SDWebImage: 16309af6d214ba3f77a7c6f6fdda888cb313a50a
+  SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
 
-PODFILE CHECKSUM: 2d4b66a651a549e780df239a1e9a60e810834308
+PODFILE CHECKSUM: f5d13c8ebcc49193ad88997a774be888e757624b
 
 COCOAPODS: 1.16.2

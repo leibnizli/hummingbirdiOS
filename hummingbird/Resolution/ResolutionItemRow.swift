@@ -280,6 +280,8 @@ struct ResolutionItemRow: View {
                 fileExtension = "png"
             case .webp:
                 fileExtension = "webp"
+            case .avif:
+                fileExtension = "avif"
             case .jpeg:
                 fileExtension = "jpg"
             default:
@@ -370,6 +372,8 @@ struct ResolutionItemRow: View {
                 fileExtension = "png"
             case .webp:
                 fileExtension = "webp"
+            case .avif:
+                fileExtension = "avif"
             case .jpeg:
                 fileExtension = "jpg"
             default:

@@ -91,10 +91,12 @@ struct ImageFormatConversionView: View {
                     Picker("", selection: $settings.targetImageFormat) {
                         Text("JPEG").tag(ImageFormat.jpeg)
                         Text("PNG").tag(ImageFormat.png)
+                        Text("HEIC").tag(ImageFormat.heic)
                         Text("WebP").tag(ImageFormat.webp)
+                        Text("AVIF").tag(ImageFormat.avif)
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 200)
+                    .frame(width: 360)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -449,6 +451,45 @@ struct ImageFormatConversionView: View {
                 print(" [convertImage] WebP 转换失败")
             }
             
+        case .avif:
+            print("[convertImage] 转换为 AVIF")
+            
+            await MainActor.run {
+                item.progress = 0.4
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 秒
+            
+            // AVIF 不支持 EXIF，使用修正方向后的图片
+            let imageToEncode = image.fixOrientation()
+            
+            await MainActor.run {
+                item.progress = 0.5
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 秒
+            
+            // 使用 AVIFCompressor 进行编码
+            if let result = await AVIFCompressor.compress(
+                image: imageToEncode,
+                quality: 0.85,
+                speedPreset: .balanced,
+                progressHandler: { progress in
+                    Task { @MainActor in
+                        item.progress = 0.5 + progress * 0.2
+                    }
+                }
+            ) {
+                convertedData = result.data
+                print("[convertImage] AVIF 转换成功，大小: \(result.data.count) bytes")
+            } else {
+                print("❌ [convertImage] AVIF 转换失败")
+                convertedData = nil
+            }
+            
+            await MainActor.run {
+                item.progress = 0.7
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 秒
+            
         case .heic:
             print("[convertImage] 转换为 HEIC")
             
@@ -604,9 +645,25 @@ struct ImageFormatConversionView: View {
                             mediaItem.originalImageFormat = .png
                         } else if type.conforms(to: .heic) {
                             mediaItem.originalImageFormat = .heic
-                        } else if type.identifier == "org.webmproject.webp" {
+                        } else if type.identifier == "org.webmproject.webp" || type.conforms(to: .webP) {
                             mediaItem.originalImageFormat = .webp
+                        } else if let avifType = UTType(filenameExtension: "avif"), type.conforms(to: avifType) {
+                            mediaItem.originalImageFormat = .avif
+                            mediaItem.fileExtension = "avif"
                         } else {
+                            mediaItem.originalImageFormat = .jpeg
+                        }
+                    } else {
+                        switch mediaItem.fileExtension {
+                        case "png":
+                            mediaItem.originalImageFormat = .png
+                        case "heic", "heif":
+                            mediaItem.originalImageFormat = .heic
+                        case "webp":
+                            mediaItem.originalImageFormat = .webp
+                        case "avif":
+                            mediaItem.originalImageFormat = .avif
+                        default:
                             mediaItem.originalImageFormat = .jpeg
                         }
                     }
@@ -643,9 +700,21 @@ struct ImageFormatConversionView: View {
                     contentType.conforms(to: .heic) ||
                     contentType.conforms(to: .heif)
                 }
+                let avifType = UTType(filenameExtension: "avif")
                 let isWebP = item.supportedContentTypes.contains { contentType in
                     contentType.identifier == "org.webmproject.webp" ||
                     contentType.preferredMIMEType == "image/webp"
+                }
+                let isAVIF = item.supportedContentTypes.contains { contentType in
+                    if contentType.identifier == "public.avif" ||
+                        contentType.identifier == "public.avci" ||
+                        contentType.preferredMIMEType == "image/avif" {
+                        return true
+                    }
+                    if let avifType = avifType {
+                        return contentType.conforms(to: avifType)
+                    }
+                    return false
                 }
                 
                 if isPNG {
@@ -657,6 +726,9 @@ struct ImageFormatConversionView: View {
                 } else if isWebP {
                     mediaItem.originalImageFormat = .webp
                     mediaItem.fileExtension = "webp"
+                } else if isAVIF {
+                    mediaItem.originalImageFormat = .avif
+                    mediaItem.fileExtension = "avif"
                 } else {
                     mediaItem.originalImageFormat = .jpeg
                     mediaItem.fileExtension = "jpg"

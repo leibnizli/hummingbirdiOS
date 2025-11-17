@@ -738,6 +738,8 @@ struct CompressionItemRow: View {
                 fileExtension = "png"
             case .webp:
                 fileExtension = "webp"
+            case .avif:
+                fileExtension = "avif"
             default:
                 fileExtension = "jpg"
             }

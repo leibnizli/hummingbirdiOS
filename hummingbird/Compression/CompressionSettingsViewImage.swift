@@ -91,6 +91,31 @@ struct CompressionSettingsViewImage: View {
                             Slider(value: $settings.webpQuality, in: 0.1...1.0, step: 0.05)
                         }
                         
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("AVIF Quality")
+                                Spacer()
+                                Text("\(Int(settings.avifQuality * 100))%")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Slider(value: $settings.avifQuality, in: 0.1...1.0, step: 0.05)
+                            
+                            Text("Next-gen format with excellent compression. Requires iOS 16+ for native preview.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Picker("AVIF Speed", selection: $settings.avifSpeedPreset) {
+                                ForEach(AVIFSpeedPreset.allCases) { preset in
+                                    Text(preset.rawValue).tag(preset)
+                                }
+                            }
+                            Text(settings.avifSpeedPreset.description)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        
                         VStack(alignment: .leading, spacing: 6) {
                             Toggle("Preserve Animated WebP", isOn: $settings.preserveAnimatedWebP)
                             
@@ -107,7 +132,7 @@ struct CompressionSettingsViewImage: View {
                     } header: {
                         Text("Quality Settings")
                     } footer: {
-                        Text("Higher quality means larger file size. When HEIC is enabled, HEIC images will keep HEIC format; when disabled, MozJPEG will convert to JPEG format. WebP format will be compressed in original format. If compressed file is larger than original, the original will be kept automatically.")
+                        Text("Higher quality means larger file size. When HEIC is enabled, HEIC images will keep HEIC format; when disabled, MozJPEG will convert to JPEG format. WebP and AVIF formats will be compressed in original format. If compressed file is larger than original, the original will be kept automatically.")
                     }
                     
                     Section {

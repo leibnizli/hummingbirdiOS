@@ -229,6 +229,31 @@ enum AudioSampleRate: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - AVIF Speed Preset
+enum AVIFSpeedPreset: String, CaseIterable, Identifiable {
+    case fast = "Fast"
+    case balanced = "Balanced"
+    case best = "Best Quality"
+    
+    var id: String { rawValue }
+    
+    var cpuUsedValue: Int {
+        switch self {
+        case .fast: return 8       // Fastest encoding
+        case .balanced: return 4   // Recommended default
+        case .best: return 0       // Slowest, best quality
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .fast: return "Faster encoding, slightly lower quality"
+        case .balanced: return "Good balance of speed and quality (recommended)"
+        case .best: return "Slowest encoding, maximum quality"
+        }
+    }
+}
+
 // MARK: - Audio Channels
 enum AudioChannels: String, CaseIterable, Identifiable {
     case mono = "Mono"
@@ -279,6 +304,12 @@ class CompressionSettings: ObservableObject {
     }
     @Published var webpQuality: Double = 0.80 {
         didSet { UserDefaults.standard.set(webpQuality, forKey: "webpQuality") }
+    }
+    @Published var avifQuality: Double = 0.85 {
+        didSet { UserDefaults.standard.set(avifQuality, forKey: "avifQuality") }
+    }
+    @Published var avifSpeedPreset: AVIFSpeedPreset = .balanced {
+        didSet { UserDefaults.standard.set(avifSpeedPreset.rawValue, forKey: "avifSpeedPreset") }
     }
     @Published var preserveAnimatedWebP: Bool = true {
         didSet { UserDefaults.standard.set(preserveAnimatedWebP, forKey: "preserveAnimatedWebP") }
@@ -396,6 +427,13 @@ class CompressionSettings: ObservableObject {
         }
         if UserDefaults.standard.object(forKey: "webpQuality") != nil {
             self.webpQuality = UserDefaults.standard.double(forKey: "webpQuality")
+        }
+        if UserDefaults.standard.object(forKey: "avifQuality") != nil {
+            self.avifQuality = UserDefaults.standard.double(forKey: "avifQuality")
+        }
+        if let presetRaw = UserDefaults.standard.string(forKey: "avifSpeedPreset"),
+           let preset = AVIFSpeedPreset(rawValue: presetRaw) {
+            self.avifSpeedPreset = preset
         }
         if UserDefaults.standard.object(forKey: "preserveAnimatedWebP") != nil {
             self.preserveAnimatedWebP = UserDefaults.standard.bool(forKey: "preserveAnimatedWebP")

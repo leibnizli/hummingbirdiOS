@@ -82,7 +82,7 @@ class MediaItem: Identifiable, ObservableObject {
     
     // Is this an image file?
     var isImage: Bool {
-        let imageExtensions = ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tiff", "tif"]
+        let imageExtensions = ["jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tiff", "tif", "avif"]
         return imageExtensions.contains(fileExtension.lowercased())
     }
     

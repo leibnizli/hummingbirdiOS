@@ -207,11 +207,12 @@ struct CompressionViewImage: View {
                     
                     // 使用 UTType 获取更准确的扩展名
                     if let type = UTType(filenameExtension: url.pathExtension) {
-                        mediaItem.fileExtension = type.preferredFilenameExtension?.lowercased() ?? url.pathExtension.lowercased()
+                        let normalizedExtension = type.preferredFilenameExtension?.lowercased() ?? fileExtension
+                        mediaItem.fileExtension = normalizedExtension
                         
                         // 设置格式
                         if isVideo {
-                            mediaItem.outputVideoFormat = type.preferredFilenameExtension?.lowercased() ?? url.pathExtension.lowercased()
+                            mediaItem.outputVideoFormat = normalizedExtension
                         } else {
                             if type.conforms(to: .png) {
                                 mediaItem.originalImageFormat = .png
@@ -219,15 +220,31 @@ struct CompressionViewImage: View {
                                 mediaItem.originalImageFormat = .heic
                             } else if type.conforms(to: .webP) {
                                 mediaItem.originalImageFormat = .webp
+                            } else if let avifType = UTType(filenameExtension: "avif"), type.conforms(to: avifType) {
+                                mediaItem.originalImageFormat = .avif
+                                mediaItem.fileExtension = "avif"
                             } else {
                                 mediaItem.originalImageFormat = .jpeg
                             }
                         }
                     } else {
                         // 回退到文件扩展名
-                        mediaItem.fileExtension = url.pathExtension.lowercased()
+                        mediaItem.fileExtension = fileExtension
                         if isVideo {
-                            mediaItem.outputVideoFormat = url.pathExtension.lowercased()
+                            mediaItem.outputVideoFormat = fileExtension
+                        } else {
+                            switch fileExtension {
+                            case "png":
+                                mediaItem.originalImageFormat = .png
+                            case "heic", "heif":
+                                mediaItem.originalImageFormat = .heic
+                            case "webp":
+                                mediaItem.originalImageFormat = .webp
+                            case "avif":
+                                mediaItem.originalImageFormat = .avif
+                            default:
+                                mediaItem.originalImageFormat = .jpeg
+                            }
                         }
                     }
                     
@@ -339,9 +356,21 @@ struct CompressionViewImage: View {
                 contentType.conforms(to: .heic) ||
                 contentType.conforms(to: .heif)
             }
+            let avifType = UTType(filenameExtension: "avif")
             let isWebP = item.supportedContentTypes.contains { contentType in
                 contentType.identifier == "org.webmproject.webp" ||
                 contentType.preferredMIMEType == "image/webp"
+            }
+            let isAVIF = item.supportedContentTypes.contains { contentType in
+                if contentType.identifier == "public.avif" ||
+                    contentType.identifier == "public.avci" ||
+                    contentType.preferredMIMEType == "image/avif" {
+                    return true
+                }
+                if let avifType = avifType {
+                    return contentType.conforms(to: avifType)
+                }
+                return false
             }
             
             // 先设置基本信息
@@ -358,6 +387,9 @@ struct CompressionViewImage: View {
                 } else if isWebP {
                     mediaItem.originalImageFormat = .webp
                     mediaItem.fileExtension = "webp"
+                } else if isAVIF {
+                    mediaItem.originalImageFormat = .avif
+                    mediaItem.fileExtension = "avif"
                 } else {
                     mediaItem.originalImageFormat = .jpeg
                     mediaItem.fileExtension = "jpg"
@@ -515,6 +547,9 @@ struct CompressionViewImage: View {
             } else if item.originalImageFormat == .webp {
                 // WebP 始终保持 WebP 格式
                 outputFormat = .webp
+            } else if item.originalImageFormat == .avif {
+                // AVIF 始终保持 AVIF 格式
+                outputFormat = .avif
             } else if settings.preferHEIC && item.originalImageFormat == .heic {
                 // 开启 HEIC 优先，且原图是 HEIC，保持 HEIC
                 outputFormat = .heic

@@ -14,6 +14,7 @@ enum ImageFormat: String, CaseIterable, Identifiable {
     case heic = "HEIC"
     case png = "PNG"
     case webp = "WebP"
+    case avif = "AVIF"
     
     var id: String { rawValue }
 }
@@ -248,6 +249,8 @@ final class MediaCompressor {
             quality = CGFloat(settings.jpegQuality)
         case .webp:
             quality = CGFloat(settings.webpQuality)
+        case .avif:
+            quality = CGFloat(settings.avifQuality)
         case .png:
             quality = 0.0  // PNG 不使用质量参数
         }
@@ -301,6 +304,18 @@ final class MediaCompressor {
            bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50 {
             print("✅ [格式检测] 检测到 WebP 格式")
             return .webp
+        }
+        
+        // AVIF 格式检测 (ftyp box with avif/avis brand)
+        if bytes.count >= 12 {
+            let ftypSignature = String(bytes: bytes[4..<8], encoding: .ascii)
+            if ftypSignature == "ftyp" {
+                let brand = String(bytes: bytes[8..<12], encoding: .ascii)
+                if brand?.hasPrefix("avif") == true || brand?.hasPrefix("avis") == true {
+                    print("✅ [格式检测] 检测到 AVIF 格式")
+                    return .avif
+                }
+            }
         }
         
         // 默认使用 JPEG
@@ -392,6 +407,36 @@ final class MediaCompressor {
     
     static func encode(image: UIImage, quality: CGFloat, format: ImageFormat, settings: CompressionSettings, originalPNGData: Data? = nil, resolutionChanged: Bool = false, progressHandler: ((Float) -> Void)? = nil) async -> Data {
         switch format {
+        case .avif:
+            // AVIF 压缩 - 使用 AVIFCompressor (FFmpeg)
+            progressHandler?(0.3)
+            print("🔄 [AVIF] 开始 AVIF 压缩 - 质量: \(quality)")
+            
+            if let result = await AVIFCompressor.compress(
+                image: image,
+                quality: Double(quality),
+                speedPreset: settings.avifSpeedPreset,
+                progressHandler: { progress in
+                    // Map progress 0.3-1.0
+                    let mappedProgress = 0.3 + (progress * 0.7)
+                    progressHandler?(mappedProgress)
+                }
+            ) {
+                progressHandler?(1.0)
+                print("✅ [AVIF] 压缩成功 - 原始: \(result.originalSize) bytes, 压缩后: \(result.compressedSize) bytes")
+                return result.data
+            } else {
+                print("⚠️ [AVIF] 压缩失败，回退到 JPEG")
+                // AVIF 编码失败，回退到 JPEG
+                if let jpegData = image.jpegData(compressionQuality: quality) {
+                    progressHandler?(1.0)
+                    print("✅ [AVIF->JPEG 回退] 压缩成功 - 大小: \(jpegData.count) bytes")
+                    return jpegData
+                }
+                progressHandler?(1.0)
+                return Data()
+            }
+            
         case .webp:
             progressHandler?(0.3)
             // WebP 压缩 - 使用 SDWebImageWebPCoder（静态图片）
