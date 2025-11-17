@@ -244,6 +244,30 @@ enum AudioChannels: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - PNG Compression Tool
+enum PNGCompressionTool: String, CaseIterable, Identifiable {
+    case zopfli
+    case pngquant
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .zopfli: return "Zopfli (lossless)"
+        case .pngquant: return "pngquant (palette)"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .zopfli:
+            return "Runs zopflipng for maximal lossless compression and respects lossy 8-bit/alpha options."
+        case .pngquant:
+            return "Uses libimagequant color quantization before encoding to PNG. Reduces colors to shrink file size."
+        }
+    }
+}
+
 // MARK: - Compression Settings
 class CompressionSettings: ObservableObject {
     // Image settings
@@ -281,6 +305,39 @@ class CompressionSettings: ObservableObject {
     }
     @Published var pngLossy8bit: Bool = false {
         didSet { UserDefaults.standard.set(pngLossy8bit, forKey: "pngLossy8bit") }
+    }
+    @Published var pngCompressionTool: PNGCompressionTool = .zopfli {
+        didSet { UserDefaults.standard.set(pngCompressionTool.rawValue, forKey: "pngCompressionTool") }
+    }
+    @Published var pngQuantMinQuality: Double = 0.6 {
+        didSet {
+            let clampedValue = max(0.1, min(pngQuantMinQuality, pngQuantMaxQuality))
+            if abs(pngQuantMinQuality - clampedValue) > .ulpOfOne {
+                pngQuantMinQuality = clampedValue
+                return
+            }
+            UserDefaults.standard.set(pngQuantMinQuality, forKey: "pngQuantMinQuality")
+        }
+    }
+    @Published var pngQuantMaxQuality: Double = 0.95 {
+        didSet {
+            let clampedValue = min(1.0, max(pngQuantMaxQuality, pngQuantMinQuality))
+            if abs(pngQuantMaxQuality - clampedValue) > .ulpOfOne {
+                pngQuantMaxQuality = clampedValue
+                return
+            }
+            UserDefaults.standard.set(pngQuantMaxQuality, forKey: "pngQuantMaxQuality")
+        }
+    }
+    @Published var pngQuantSpeed: Int = 3 {
+        didSet {
+            let clampedValue = max(1, min(pngQuantSpeed, 10))
+            if pngQuantSpeed != clampedValue {
+                pngQuantSpeed = clampedValue
+                return
+            }
+            UserDefaults.standard.set(pngQuantSpeed, forKey: "pngQuantSpeed")
+        }
     }
     
     // Audio settings
@@ -366,6 +423,19 @@ class CompressionSettings: ObservableObject {
         }
         if UserDefaults.standard.object(forKey: "pngLossy8bit") != nil {
             self.pngLossy8bit = UserDefaults.standard.bool(forKey: "pngLossy8bit")
+        }
+        if let toolRaw = UserDefaults.standard.string(forKey: "pngCompressionTool"),
+           let tool = PNGCompressionTool(rawValue: toolRaw) {
+            self.pngCompressionTool = tool
+        }
+        if UserDefaults.standard.object(forKey: "pngQuantMinQuality") != nil {
+            self.pngQuantMinQuality = UserDefaults.standard.double(forKey: "pngQuantMinQuality")
+        }
+        if UserDefaults.standard.object(forKey: "pngQuantMaxQuality") != nil {
+            self.pngQuantMaxQuality = UserDefaults.standard.double(forKey: "pngQuantMaxQuality")
+        }
+        if UserDefaults.standard.object(forKey: "pngQuantSpeed") != nil {
+            self.pngQuantSpeed = UserDefaults.standard.integer(forKey: "pngQuantSpeed")
         }
         
         if let codecRaw = UserDefaults.standard.string(forKey: "videoCodec"),

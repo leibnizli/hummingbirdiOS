@@ -3,7 +3,6 @@ import UIKit
 import AVFoundation
 import Combine
 import SDWebImageWebPCoder
-
 enum MediaCompressionError: Error {
     case imageDecodeFailed
     case videoExportFailed
@@ -79,10 +78,20 @@ enum AudioFormat: String, CaseIterable, Identifiable {
     }
 }
 
+struct PNGCompressionReport {
+    let tool: PNGCompressionTool
+    let zopfliIterations: Int?
+    let zopfliIterationsLarge: Int?
+    let lossyTransparent: Bool?
+    let lossy8bit: Bool?
+    let paletteSize: Int?
+    let quantizationQuality: Int?
+}
+
 final class MediaCompressor {
     
     // Store last PNG compression parameters (actual applied values)
-    static var lastPNGCompressionParams: (numIterations: Int, numIterationsLarge: Int, actualLossyTransparent: Bool, actualLossy8bit: Bool)?
+    static var lastPNGCompressionReport: PNGCompressionReport?
     
     // Compress audio file
     static func compressAudio(
@@ -424,32 +433,53 @@ final class MediaCompressor {
             } else {
                 pngDataToCompress = image.pngData() ?? Data()
             }
-            
-            if let result = await PNGCompressor.compressWithOriginalData(
-                pngData: pngDataToCompress,
-                image: image,
-                numIterations: settings.pngNumIterations,
-                numIterationsLarge: settings.pngNumIterationsLarge,
-                lossyTransparent: settings.pngLossyTransparent,
-                lossy8bit: settings.pngLossy8bit,
-                progressHandler: { progress in
-                    // 将 PNG 压缩器的进度映射到 0.3-1.0 范围
-                    let mappedProgress = 0.3 + (progress * 0.7)
-                    progressHandler?(mappedProgress)
-                }) {
-                // Record actual applied parameters
-                Self.lastPNGCompressionParams = (
+            switch settings.pngCompressionTool {
+            case .zopfli:
+                if let result = await PNGCompressor.compressWithOriginalData(
+                    pngData: pngDataToCompress,
+                    image: image,
                     numIterations: settings.pngNumIterations,
                     numIterationsLarge: settings.pngNumIterationsLarge,
-                    actualLossyTransparent: result.actualLossyTransparent,
-                    actualLossy8bit: result.actualLossy8bit
-                )
-                print("✅ [PNG] 压缩成功 - 大小: \(result.data.count) bytes")
-                return result.data
-            } else {
-                print("⚠️ [PNG] 压缩失败，使用原始 PNG")
-                progressHandler?(1.0)
-                return image.pngData() ?? Data()
+                    lossyTransparent: settings.pngLossyTransparent,
+                    lossy8bit: settings.pngLossy8bit,
+                    progressHandler: { progress in
+                        // 将 PNG 压缩器的进度映射到 0.3-1.0 范围
+                        let mappedProgress = 0.3 + (progress * 0.7)
+                        progressHandler?(mappedProgress)
+                    }) {
+                    Self.lastPNGCompressionReport = result.report
+                    print("✅ [PNG] 压缩成功 - 大小: \(result.data.count) bytes")
+                    return result.data
+                } else {
+                    print("⚠️ [PNG] 压缩失败，使用原始 PNG")
+                    Self.lastPNGCompressionReport = nil
+                    progressHandler?(1.0)
+                    return image.pngData() ?? Data()
+                }
+            case .pngquant:
+                let minQualityPercentRaw = Int((settings.pngQuantMinQuality * 100).rounded())
+                let maxQualityPercentRaw = Int((settings.pngQuantMaxQuality * 100).rounded())
+                let clampedMinQuality = max(0, min(100, minQualityPercentRaw))
+                let clampedMaxQualityCandidate = max(0, min(100, maxQualityPercentRaw))
+                let clampedMaxQuality = max(clampedMinQuality, clampedMaxQualityCandidate)
+                if let result = await PNGCompressor.compressWithPNGQuant(
+                    image: image,
+                    qualityRange: (min: clampedMinQuality, max: clampedMaxQuality),
+                    speed: settings.pngQuantSpeed,
+                    progressHandler: { progress in
+                        let mapped = 0.3 + (progress * 0.7)
+                        progressHandler?(mapped)
+                    }
+                ) {
+                    Self.lastPNGCompressionReport = result.report
+                    print("✅ [PNG] pngquant success - size: \(result.data.count) bytes")
+                    return result.data
+                } else {
+                    print("⚠️ [PNG] pngquant failed, falling back to original PNG")
+                    Self.lastPNGCompressionReport = nil
+                    progressHandler?(1.0)
+                    return image.pngData() ?? Data()
+                }
             }
             
         case .jpeg:

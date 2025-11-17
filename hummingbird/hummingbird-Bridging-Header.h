@@ -5,3 +5,4 @@
 #import "MozJPEGEncoder.h"
 #include "zopfli/zopfli.h"
 #include "zopflipng/zopflipng_lib.h" // 如果用 PNG 压缩
+#import "PNGQuantBridge.h"

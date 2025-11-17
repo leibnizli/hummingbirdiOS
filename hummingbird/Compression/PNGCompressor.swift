@@ -6,10 +6,11 @@
 import UIKit
 import Darwin
 
+typealias liq_result = OpaquePointer
+
 struct PNGCompressionResult {
     let data: Data
-    let actualLossyTransparent: Bool
-    let actualLossy8bit: Bool
+    let report: PNGCompressionReport
 }
 
 struct PNGCompressor { }
@@ -30,8 +31,8 @@ extension PNGCompressor {
 
         guard !pngData.isEmpty else { return nil }
 
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+        return await withCheckedContinuation { (continuation: CheckedContinuation<PNGCompressionResult?, Never>) in
+            let workItem = DispatchWorkItem {
 
                 let result: PNGCompressionResult? = pngData.withUnsafeBytes { (origBuf: UnsafeRawBufferPointer) -> PNGCompressionResult? in
                     guard let base = origBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return nil }
@@ -114,15 +115,165 @@ extension PNGCompressor {
                     free(rptr)
                     
                     // Return both data and actual applied lossy flags
-                    return PNGCompressionResult(
-                        data: out,
-                        actualLossyTransparent: enableLossyTransparent,
-                        actualLossy8bit: enableLossy8bit
+                    let report = PNGCompressionReport(
+                        tool: .zopfli,
+                        zopfliIterations: numIterations,
+                        zopfliIterationsLarge: numIterationsLarge,
+                        lossyTransparent: enableLossyTransparent,
+                        lossy8bit: enableLossy8bit,
+                        paletteSize: nil,
+                        quantizationQuality: nil
                     )
+
+                    return PNGCompressionResult(data: out, report: report)
                 }
 
                 continuation.resume(returning: result)
             }
+            DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
+        }
+    }
+
+    /// Compress a UIImage using libimagequant (pngquant) style color quantization.
+    /// Produces an indexed palette image and re-encodes it as PNG data.
+    static func compressWithPNGQuant(
+        image: UIImage,
+        qualityRange: (min: Int, max: Int) = (60, 95),
+        speed: Int = 3,
+        dithering: Float = 1.0,
+        progressHandler: ((Float) -> Void)? = nil
+    ) async -> PNGCompressionResult? {
+        guard let cgImage = image.cgImage else { return nil }
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 0, height > 0 else { return nil }
+
+        return await withCheckedContinuation { (continuation: CheckedContinuation<PNGCompressionResult?, Never>) in
+            let workItem = DispatchWorkItem {
+                progressHandler?(0.05)
+
+                let bytesPerPixel = 4
+                let bytesPerRow = width * bytesPerPixel
+                var rgbaBuffer = [UInt8](repeating: 0, count: bytesPerRow * height)
+                let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+                guard let context = CGContext(
+                    data: &rgbaBuffer,
+                    width: width,
+                    height: height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: bytesPerRow,
+                    space: colorSpace,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+                ) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+                guard let attr = liq_attr_create() else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                defer { liq_attr_destroy(attr) }
+
+                _ = liq_set_speed(attr, Int32(speed))
+                _ = liq_set_quality(attr, Int32(qualityRange.min), Int32(qualityRange.max))
+
+                var compressionResult: PNGCompressionResult?
+
+                rgbaBuffer.withUnsafeMutableBytes { rawBuffer in
+                    guard let baseAddress = rawBuffer.baseAddress else { return }
+                    guard let liqImagePtr = liq_image_create_rgba(attr, baseAddress, Int32(width), Int32(height), 0.0) else {
+                        return
+                    }
+                    defer { liq_image_destroy(liqImagePtr) }
+
+                    _ = liq_image_set_memory_ownership(liqImagePtr, Int32(LIQ_COPY_PIXELS.rawValue))
+
+                    var resultPtr: liq_result? = nil
+                    let quantStatus = liq_image_quantize(liqImagePtr, attr, &resultPtr)
+                    guard quantStatus == LIQ_OK, let quantResult = resultPtr else {
+                        return
+                    }
+                    defer { liq_result_destroy(quantResult) }
+
+                    _ = liq_set_dithering_level(quantResult, dithering)
+
+                    let pixelCount = width * height
+                    var remappedPixels = [UInt8](repeating: 0, count: pixelCount)
+                    let remapStatus = liq_write_remapped_image(quantResult, liqImagePtr, &remappedPixels, remappedPixels.count)
+                    guard remapStatus == LIQ_OK, let palettePtr = liq_get_palette(quantResult) else {
+                        return
+                    }
+
+                    let palette = palettePtr.pointee
+                    let paletteCount = Int(palette.count)
+                    guard paletteCount > 0 else { return }
+
+                    progressHandler?(0.6)
+
+                    var quantizedRGBA = [UInt8](repeating: 0, count: pixelCount * bytesPerPixel)
+                    withUnsafePointer(to: palette.entries) { tuplePtr in
+                        tuplePtr.withMemoryRebound(to: liq_color.self, capacity: 256) { entriesPtr in
+                            for index in 0..<pixelCount {
+                                let paletteIndex = Int(remappedPixels[index])
+                                guard paletteIndex < paletteCount else { continue }
+                                let color = entriesPtr[paletteIndex]
+                                let dst = index * bytesPerPixel
+                                quantizedRGBA[dst] = color.r
+                                quantizedRGBA[dst + 1] = color.g
+                                quantizedRGBA[dst + 2] = color.b
+                                quantizedRGBA[dst + 3] = color.a
+                            }
+                        }
+                    }
+
+                    guard let provider = CGDataProvider(data: Data(quantizedRGBA) as CFData) else {
+                        return
+                    }
+
+                    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+                    guard let quantizedCGImage = CGImage(
+                        width: width,
+                        height: height,
+                        bitsPerComponent: 8,
+                        bitsPerPixel: 32,
+                        bytesPerRow: bytesPerRow,
+                        space: colorSpace,
+                        bitmapInfo: bitmapInfo,
+                        provider: provider,
+                        decode: nil,
+                        shouldInterpolate: false,
+                        intent: .defaultIntent
+                    ) else {
+                        return
+                    }
+
+                    let quantizedImage = UIImage(cgImage: quantizedCGImage, scale: image.scale, orientation: image.imageOrientation)
+                    guard let pngData = quantizedImage.pngData() else {
+                        return
+                    }
+
+                    let qualityScore = liq_get_quantization_quality(quantResult)
+                    let report = PNGCompressionReport(
+                        tool: .pngquant,
+                        zopfliIterations: nil,
+                        zopfliIterationsLarge: nil,
+                        lossyTransparent: nil,
+                        lossy8bit: nil,
+                        paletteSize: paletteCount,
+                        quantizationQuality: Int(qualityScore)
+                    )
+
+                    compressionResult = PNGCompressionResult(data: pngData, report: report)
+                }
+
+                progressHandler?(1.0)
+                continuation.resume(returning: compressionResult)
+            }
+            DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
         }
     }
 
@@ -138,8 +289,8 @@ extension PNGCompressor {
 
         guard let pngData = image.pngData() else { return nil }
 
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+        return await withCheckedContinuation { (continuation: CheckedContinuation<PNGCompressionResult?, Never>) in
+            let workItem = DispatchWorkItem {
 
                 let result: PNGCompressionResult? = pngData.withUnsafeBytes { (origBuf: UnsafeRawBufferPointer) -> PNGCompressionResult? in
                     guard let base = origBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return nil }
@@ -222,15 +373,22 @@ extension PNGCompressor {
                     free(rptr)
                     
                     // Return both data and actual applied lossy flags
-                    return PNGCompressionResult(
-                        data: out,
-                        actualLossyTransparent: enableLossyTransparent,
-                        actualLossy8bit: enableLossy8bit
+                    let report = PNGCompressionReport(
+                        tool: .zopfli,
+                        zopfliIterations: numIterations,
+                        zopfliIterationsLarge: numIterationsLarge,
+                        lossyTransparent: enableLossyTransparent,
+                        lossy8bit: enableLossy8bit,
+                        paletteSize: nil,
+                        quantizationQuality: nil
                     )
+
+                    return PNGCompressionResult(data: out, report: report)
                 }
 
                 continuation.resume(returning: result)
             }
+            DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
         }
     }
 }

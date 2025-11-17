@@ -259,33 +259,47 @@ struct CompressionItemRow: View {
                                     }
                                     
                                     // 显示 PNG 压缩参数
-                                    if item.outputImageFormat == .png, let params = item.pngCompressionParams {
+                                    if item.outputImageFormat == .png, let report = item.pngCompressionReport {
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text("PNG Params:")
+                                            Text("PNG Engine: \(report.tool.displayName)")
                                                 .font(.caption2)
                                                 .fontWeight(.semibold)
                                                 .foregroundStyle(.blue)
-                                            Text("Iterations: \(params.numIterations), Large: \(params.numIterationsLarge)")
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                            
-                                            // 显示 Lossy Transparent 状态
-                                            if params.actualLossyTransparent {
-                                                Text("✓ lossy_transparent enabled")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.orange)
-                                            }
-                                            
-                                            // 显示 Lossy 8-bit 状态
-                                            if params.actualLossy8bit {
-                                                Text("✓ lossy_8bit enabled")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.orange)
-                                            }
-                                            
-                                            // 如果都没有启用
-                                            if !params.actualLossyTransparent && !params.actualLossy8bit {
-                                                Text("Lossy: disabled (lossless)")
+                                            switch report.tool {
+                                            case .zopfli:
+                                                if let smallIter = report.zopfliIterations,
+                                                   let largeIter = report.zopfliIterationsLarge {
+                                                    Text("Iterations: \(smallIter), Large: \(largeIter)")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                                if report.lossyTransparent == true {
+                                                    Text("✓ lossy_transparent enabled")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.orange)
+                                                }
+                                                if report.lossy8bit == true {
+                                                    Text("✓ lossy_8bit enabled")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.orange)
+                                                }
+                                                if report.lossyTransparent != true && report.lossy8bit != true {
+                                                    Text("Lossy: disabled (lossless)")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            case .pngquant:
+                                                if let palette = report.paletteSize {
+                                                    Text("Palette: \(palette) colors")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                                if let quality = report.quantizationQuality {
+                                                    Text("Quantization quality: \(quality)")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                                Text("Dithering: enabled (perceptual)")
                                                     .font(.caption2)
                                                     .foregroundStyle(.secondary)
                                             }

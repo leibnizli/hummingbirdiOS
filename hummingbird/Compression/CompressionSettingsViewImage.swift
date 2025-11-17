@@ -112,54 +112,128 @@ struct CompressionSettingsViewImage: View {
                     
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Zopfli Iterations (Small Images)")
-                                Spacer()
-                                Text("\(settings.pngNumIterations)")
-                                    .foregroundStyle(.secondary)
+                            Picker("Compression Engine", selection: $settings.pngCompressionTool) {
+                                ForEach(PNGCompressionTool.allCases) { tool in
+                                    Text(tool.displayName).tag(tool)
+                                }
                             }
-                            Slider(value: Binding(
-                                get: { Double(settings.pngNumIterations) },
-                                set: { settings.pngNumIterations = Int($0) }
-                            ), in: 1...5, step: 1)
-                            Text("Used for images smaller than 1MB. Higher values = smaller file size, but slower compression. Default: 3 iterations.")
+                            Text(settings.pngCompressionTool.description)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Zopfli Iterations (Large Images)")
-                                Spacer()
-                                Text("\(settings.pngNumIterationsLarge)")
+
+                        if settings.pngCompressionTool == .zopfli {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Zopfli Iterations (Small Images)")
+                                    Spacer()
+                                    Text("\(settings.pngNumIterations)")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: Binding(
+                                    get: { Double(settings.pngNumIterations) },
+                                    set: { settings.pngNumIterations = Int($0) }
+                                ), in: 1...5, step: 1)
+                                Text("Used for images smaller than 1MB. Higher values = smaller file size, but slower compression. Default: 3 iterations.")
+                                    .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
-                            Slider(value: Binding(
-                                get: { Double(settings.pngNumIterationsLarge) },
-                                set: { settings.pngNumIterationsLarge = Int($0) }
-                            ), in: 1...3, step: 1)
-                            Text("Used for images 1MB or larger. Usually set lower than small image iterations to balance compression vs time. Default: 1 iterations.")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 6) {
-                            Toggle("Allow Lossy Transparent Pixels", isOn: $settings.pngLossyTransparent)
-                            Text("Only applies to images with alpha channel (transparency). Reduces file size by sacrificing transparency quality. Ignored for opaque images.")
-                                .font(.caption2)
-                                .foregroundStyle(.orange)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 6) {
-                            Toggle("Convert 16-bit to 8-bit", isOn: $settings.pngLossy8bit)
-                            Text("Only applies to 16-bit per channel images. Reduces precision to 8-bit, which reduces file size but may lose subtle color gradations. Ignored for standard 8-bit images.")
-                                .font(.caption2)
-                                .foregroundStyle(.orange)
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Zopfli Iterations (Large Images)")
+                                    Spacer()
+                                    Text("\(settings.pngNumIterationsLarge)")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: Binding(
+                                    get: { Double(settings.pngNumIterationsLarge) },
+                                    set: { settings.pngNumIterationsLarge = Int($0) }
+                                ), in: 1...3, step: 1)
+                                Text("Used for images 1MB or larger. Usually set lower than small image iterations to balance compression vs time. Default: 1 iteration.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Toggle("Allow Lossy Transparent Pixels", isOn: $settings.pngLossyTransparent)
+                                Text("Only applies to images with alpha channel (transparency). Reduces file size by sacrificing transparency quality. Ignored for opaque images.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Toggle("Convert 16-bit to 8-bit", isOn: $settings.pngLossy8bit)
+                                Text("Only applies to 16-bit per channel images. Reduces precision to 8-bit, which reduces file size but may lose subtle color gradations. Ignored for standard 8-bit images.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("pngquant uses libimagequant to reduce the palette to 256 colors and applies perceptual dithering. This is ideal for UI assets, icons, and graphics with limited colors.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("Tip: pngquant introduces a small amount of loss to shrink file size dramatically. Use Zopfli if you need strictly lossless output.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("Minimum Quality")
+                                        Spacer()
+                                        Text(String(format: "%.0f%%", settings.pngQuantMinQuality * 100))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Slider(value: $settings.pngQuantMinQuality, in: 0.1...0.95, step: 0.05)
+                                    Text("Lower bound for pngquant's perceptual quality range.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("Maximum Quality")
+                                        Spacer()
+                                        Text(String(format: "%.0f%%", settings.pngQuantMaxQuality * 100))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Slider(
+                                        value: Binding(
+                                            get: { settings.pngQuantMaxQuality },
+                                            set: { newValue in settings.pngQuantMaxQuality = max(settings.pngQuantMinQuality, newValue) }
+                                        ),
+                                        in: settings.pngQuantMinQuality...1.0,
+                                        step: 0.05
+                                    )
+                                    Text("Upper bound for pngquant's quality search. Higher values keep more detail at the cost of size.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("Speed")
+                                        Spacer()
+                                        Text("\(settings.pngQuantSpeed)")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Slider(value: Binding(
+                                        get: { Double(settings.pngQuantSpeed) },
+                                        set: { settings.pngQuantSpeed = Int($0.rounded()) }
+                                    ), in: 1...10, step: 1)
+                                    Text("pngquant speed: 1 is slowest/best, 10 is fastest/lowest quality.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     } header: {
                         Text("PNG Compression Settings")
                     } footer: {
-                        Text("Zopfli iterations: Higher values = better compression but slower (default: 15). Lossy options can further reduce file size but may sacrifice quality. If lossy options don't apply to your image, they will be automatically disabled during compression.")
+                        if settings.pngCompressionTool == .zopfli {
+                            Text("Zopfli iterations: Higher values = better compression but slower. Lossy options can further reduce file size but may sacrifice quality. If lossy options don't apply to your image, they are automatically ignored.")
+                        } else {
+                            Text("pngquant outputs an indexed PNG. Colors are quantized to a smaller palette, which reduces size while preserving perceived detail.")
+                        }
                     }
                     
                     // Open Source Libraries Notice
@@ -172,6 +246,14 @@ struct CompressionSettingsViewImage: View {
                                 
                                 Text("Uses mozjpeg - Copyright (c) Mozilla Corporation. All rights reserved.")
                                     .font(.caption)
+                            }
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("PNG Compression Library")
+                                    .font(.headline)
+                                Text("pngquant (GPLv3) powered by libimagequant. Our integration code is published at https://github.com/leibnizli/hummingbirdiOS to satisfy GPL requirements.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         .padding(.vertical, 4)

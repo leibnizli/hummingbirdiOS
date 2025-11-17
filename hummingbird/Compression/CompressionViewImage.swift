@@ -587,8 +587,8 @@ struct CompressionViewImage: View {
                 }
                 
                 // 记录 PNG 压缩参数
-                if outputFormat == .png, let params = MediaCompressor.lastPNGCompressionParams {
-                    item.pngCompressionParams = params
+                if outputFormat == .png, let report = MediaCompressor.lastPNGCompressionReport {
+                    item.pngCompressionReport = report
                 }
                 
                 if let image = UIImage(data: item.compressedData!) {

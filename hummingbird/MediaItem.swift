@@ -103,8 +103,8 @@ class MediaItem: Identifiable, ObservableObject {
     @Published var webpFrameCount: Int = 0
     @Published var preservedAnimation: Bool = false  // 是否保留了动画
     
-    // PNG compression parameters (actual applied values, not user settings)
-    @Published var pngCompressionParams: (numIterations: Int, numIterationsLarge: Int, actualLossyTransparent: Bool, actualLossy8bit: Bool)?
+    // PNG compression metadata (actual applied engine details)
+    @Published var pngCompressionReport: PNGCompressionReport?
     
     // Temporary file URL (for video)
     var sourceVideoURL: URL?
