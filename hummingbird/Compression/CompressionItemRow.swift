@@ -189,6 +189,41 @@ struct CompressionItemRow: View {
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                         }
                                     }
+                                    if item.isAnimatedAVIF && (originalFormat == "AVIF" || outputFormat == "AVIF") {
+                                        if item.preservedAnimation {
+                                            HStack(spacing: 2) {
+                                                Image(systemName: "play.rectangle.fill")
+                                                    .font(.caption2)
+                                                if item.avifFrameCount > 0 {
+                                                    Text("\(item.avifFrameCount) frames")
+                                                        .font(.caption2)
+                                                        .fontWeight(.medium)
+                                                } else {
+                                                    Text("Animated")
+                                                        .font(.caption2)
+                                                        .fontWeight(.medium)
+                                                }
+                                            }
+                                            .foregroundStyle(.green)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.green.opacity(0.15))
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        } else {
+                                            HStack(spacing: 2) {
+                                                Image(systemName: "photo.fill")
+                                                    .font(.caption2)
+                                                Text("Static")
+                                                    .font(.caption2)
+                                                    .fontWeight(.medium)
+                                            }
+                                            .foregroundStyle(.orange)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.orange.opacity(0.15))
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        }
+                                    }
                                 }
                             } else {
                                 // 未完成时只显示原始格式
@@ -210,6 +245,26 @@ struct CompressionItemRow: View {
                                             .font(.caption2)
                                         if item.webpFrameCount > 0 {
                                             Text("\(item.webpFrameCount) frames")
+                                                .font(.caption2)
+                                                .fontWeight(.medium)
+                                        } else {
+                                            Text("Animated")
+                                                .font(.caption2)
+                                                .fontWeight(.medium)
+                                        }
+                                    }
+                                    .foregroundStyle(.blue)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.blue.opacity(0.15))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                }
+                                if item.isAnimatedAVIF && item.fileExtension.uppercased() == "AVIF" {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "play.rectangle.fill")
+                                            .font(.caption2)
+                                        if item.avifFrameCount > 0 {
+                                            Text("\(item.avifFrameCount) frames")
                                                 .font(.caption2)
                                                 .fontWeight(.medium)
                                         } else {

@@ -129,6 +129,18 @@ struct CompressionSettingsViewImage: View {
                                     .foregroundStyle(.orange)
                             }
                         }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Toggle("Preserve Animated AVIF", isOn: $settings.preserveAnimatedAVIF)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("When enabled, AVIF image sequences keep their motion by re-encoding all frames. Turning it off flattens the sequence into a single still frame.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("Re-encoding animations may take longer and some files may not shrink much if they are already optimized.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
                     } header: {
                         Text("Quality Settings")
                     } footer: {

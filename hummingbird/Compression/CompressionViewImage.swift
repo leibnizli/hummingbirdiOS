@@ -4,12 +4,13 @@
 //
 //  Compression View
 //
-
 import SwiftUI
-import PhotosUI
 import AVFoundation
 import Photos
+import PhotosUI
+import SDWebImage
 import SDWebImageWebPCoder
+import UniformTypeIdentifiers
 
 struct CompressionViewImage: View {
     @State private var selectedItems: [PhotosPickerItem] = []
@@ -85,7 +86,7 @@ struct CompressionViewImage: View {
                     .fill(Color(uiColor: .separator).opacity(0.5))
                     .frame(height: 0.5)
             }
-
+            
             
             // 文件列表
             if mediaItems.isEmpty {
@@ -137,10 +138,17 @@ struct CompressionViewImage: View {
         }
         .onChange(of: selectedItems) { _, newItems in
             guard !newItems.isEmpty else { return }
-            Task { 
+            Task {
                 await loadSelectedItems(newItems)
                 await MainActor.run {
                     selectedItems = []
+                }
+            }
+        }
+        .onChange(of: settings.preserveAnimatedAVIF) { _, newValue in
+            Task { @MainActor in
+                for item in mediaItems where item.isAnimatedAVIF {
+                    item.infoMessage = avifAnimationMessage(preserve: newValue)
                 }
             }
         }
@@ -198,12 +206,14 @@ struct CompressionViewImage: View {
                 // 读取文件数据
                 let data = try Data(contentsOf: url)
                 
-                // 检测是否是 WebP
+                // 检测是否是 WebP/AVIF
                 let isWebP = UTType(filenameExtension: url.pathExtension)?.conforms(to: .webP) ?? false
+                let isAnimatedAVIF = MediaCompressor.isAnimatedAVIF(data: data)
                 
                 await MainActor.run {
                     mediaItem.originalData = data
                     mediaItem.originalSize = data.count
+                    mediaItem.isAnimatedAVIF = isAnimatedAVIF
                     
                     // 使用 UTType 获取更准确的扩展名
                     if let type = UTType(filenameExtension: url.pathExtension) {
@@ -253,6 +263,9 @@ struct CompressionViewImage: View {
                         mediaItem.thumbnailImage = generateThumbnail(from: image)
                         mediaItem.originalResolution = image.size
                         mediaItem.status = .pending
+                        if isAnimatedAVIF {
+                            mediaItem.infoMessage = settings.preserveAnimatedAVIF ? "Animated AVIF detected — will preserve frames" : "Animated AVIF detected — will convert to static"
+                        }
                     }
                 }
                 
@@ -264,9 +277,9 @@ struct CompressionViewImage: View {
                     let bytes = [UInt8](data.prefix(30))
                     var hasAnimationFlag = false
                     
-                    if bytes.count >= 21 && 
-                       bytes[12] == 0x56 && bytes[13] == 0x50 && 
-                       bytes[14] == 0x38 && bytes[15] == 0x58 {
+                    if bytes.count >= 21 &&
+                        bytes[12] == 0x56 && bytes[13] == 0x50 &&
+                        bytes[14] == 0x38 && bytes[15] == 0x58 {
                         let flags = bytes[20]
                         hasAnimationFlag = (flags & 0x02) != 0
                         print("📊 [LoadFileURLs] 文件头检测 - VP8X 标志位: 0x\(String(format: "%02X", flags)), 动画: \(hasAnimationFlag)")
@@ -296,7 +309,17 @@ struct CompressionViewImage: View {
                         }
                     }
                 }
-
+                
+                if isAnimatedAVIF {
+                    print("🎬 [LoadFileURLs] 检测到动画 AVIF，将在压缩时保留动画")
+                    Task {
+                        let frames = await AVIFCompressor.detectFrameCount(avifData: data)
+                        await MainActor.run {
+                            mediaItem.avifFrameCount = frames
+                        }
+                    }
+                }
+                
             } catch {
                 await MainActor.run {
                     mediaItem.status = .failed
@@ -351,7 +374,7 @@ struct CompressionViewImage: View {
                 contentType.conforms(to: .png)
             }
             let isHEIC = item.supportedContentTypes.contains { contentType in
-                contentType.identifier == "public.heic" || 
+                contentType.identifier == "public.heic" ||
                 contentType.identifier == "public.heif" ||
                 contentType.conforms(to: .heic) ||
                 contentType.conforms(to: .heif)
@@ -372,11 +395,13 @@ struct CompressionViewImage: View {
                 }
                 return false
             }
+            let isAnimatedAVIF = MediaCompressor.isAnimatedAVIF(data: data)
             
             // 先设置基本信息
             await MainActor.run {
                 mediaItem.originalData = data
                 mediaItem.originalSize = data.count
+                mediaItem.isAnimatedAVIF = isAnimatedAVIF
                 
                 if isPNG {
                     mediaItem.originalImageFormat = .png
@@ -402,17 +427,19 @@ struct CompressionViewImage: View {
                 
                 // 加载完成，设置为等待状态
                 mediaItem.status = .pending
+                if isAnimatedAVIF {
+                    mediaItem.infoMessage = avifAnimationMessage(preserve: settings.preserveAnimatedAVIF)
+                }
             }
-            
             // 异步检测动画 WebP（不阻塞 UI）
             if isWebP {
                 // 先快速检查文件头
                 let bytes = [UInt8](data.prefix(30))
                 var hasAnimationFlag = false
                 
-                if bytes.count >= 21 && 
-                   bytes[12] == 0x56 && bytes[13] == 0x50 && 
-                   bytes[14] == 0x38 && bytes[15] == 0x58 {
+                if bytes.count >= 21 &&
+                    bytes[12] == 0x56 && bytes[13] == 0x50 &&
+                    bytes[14] == 0x38 && bytes[15] == 0x58 {
                     let flags = bytes[20]
                     hasAnimationFlag = (flags & 0x02) != 0
                     print("📊 [LoadImage] 文件头快速检测 - VP8X 标志位: 0x\(String(format: "%02X", flags)), 动画标志: \(hasAnimationFlag)")
@@ -445,6 +472,14 @@ struct CompressionViewImage: View {
                         }
                     } else {
                         print("⚠️ [LoadImage] SDAnimatedImage 初始化失败，保持文件头检测结果")
+                    }
+                }
+            }
+            if isAnimatedAVIF {
+                Task {
+                    let frames = await AVIFCompressor.detectFrameCount(avifData: data)
+                    await MainActor.run {
+                        mediaItem.avifFrameCount = frames
                     }
                 }
             }
@@ -595,6 +630,7 @@ struct CompressionViewImage: View {
             
             await MainActor.run {
                 // 智能判断：如果压缩后反而变大，保留原图
+                item.infoMessage = nil
                 if compressed.count >= originalData.count {
                     print("⚠️ [Compression Check] Compressed size (\(compressed.count) bytes) >= Original size (\(originalData.count) bytes), keeping original")
                     item.compressedData = originalData
@@ -604,6 +640,10 @@ struct CompressionViewImage: View {
                     // 如果是动画 WebP，保留原始动画
                     if item.isAnimatedWebP {
                         item.preservedAnimation = true
+                    }
+                    if item.isAnimatedAVIF {
+                        item.preservedAnimation = true
+                        item.infoMessage = "Animated AVIF preserved (no size reduction)"
                     }
                 } else {
                     print("✅ [Compression Check] Compression successful, reduced from \(originalData.count) bytes to \(compressed.count) bytes")
@@ -618,6 +658,18 @@ struct CompressionViewImage: View {
                             item.preservedAnimation = compressedFrameCount > 1
                             print("📊 [CompressionView] 压缩后 WebP - 帧数: \(compressedFrameCount), 保留动画: \(item.preservedAnimation)")
                         }
+                    }
+                    if item.isAnimatedAVIF {
+                        let preserved = MediaCompressor.isAnimatedAVIF(data: compressed)
+                        item.preservedAnimation = preserved
+                        if preserved {
+                            item.infoMessage = "Animated AVIF re-encoded with quality settings"
+                        } else {
+                            item.infoMessage = "Animation removed during AVIF re-encode"
+                        }
+                    }
+                    if !item.isAnimatedAVIF && !item.isAnimatedWebP {
+                        item.infoMessage = nil
                     }
                 }
                 
@@ -638,6 +690,10 @@ struct CompressionViewImage: View {
                 item.errorMessage = error.localizedDescription
             }
         }
+    }
+    
+    private func avifAnimationMessage(preserve: Bool) -> String {
+        preserve ? "Animated AVIF detected — will preserve frames" : "Animated AVIF detected — will convert to static"
     }
 }
 

@@ -254,6 +254,34 @@ final class MediaCompressor {
         case .png:
             quality = 0.0  // PNG 不使用质量参数
         }
+
+        // 动画 AVIF：使用 FFmpeg 重新编码以保留多帧（可配置）
+        let animatedAVIF = (format == .avif && isAnimatedAVIF(data: data))
+        if animatedAVIF {
+            if settings.preserveAnimatedAVIF {
+                print("🎬 [AVIF] 检测到动画 AVIF，开始使用 FFmpeg 重新编码以应用质量设置")
+                progressHandler?(0.25)
+                if let result = await AVIFCompressor.compressAnimated(
+                    avifData: data,
+                    quality: Double(settings.avifQuality),
+                    speedPreset: settings.avifSpeedPreset,
+                    progressHandler: { progress in
+                        let mapped = 0.25 + (progress * 0.7)
+                        progressHandler?(mapped)
+                    }
+                ) {
+                    progressHandler?(1.0)
+                    print("✅ [AVIF] 动画重新编码成功 - 原始: \(result.originalSize) bytes, 压缩后: \(result.compressedSize) bytes")
+                    return result.data
+                } else {
+                    progressHandler?(1.0)
+                    print("⚠️ [AVIF] 动画重新编码失败，保留原始数据")
+                    return data
+                }
+            } else {
+                print("⚠️ [AVIF] 动画已检测到，但设置为不保留动画，将转换为静态帧")
+            }
+        }
         
         // For PNG, pass original data to avoid re-encoding
         let originalPNGData = (format == .png) ? data : nil
@@ -321,6 +349,22 @@ final class MediaCompressor {
         // 默认使用 JPEG
         print("⚠️ [格式检测] 未识别格式，默认使用 JPEG")
         return .jpeg
+    }
+
+    static func isAnimatedAVIF(data: Data) -> Bool {
+        guard data.count >= 16 else { return false }
+        let bytes = [UInt8](data.prefix(16))
+        guard let ftypSignature = String(bytes: bytes[4..<8], encoding: .ascii), ftypSignature == "ftyp" else {
+            return false
+        }
+        guard let brand = String(bytes: bytes[8..<12], encoding: .ascii) else {
+            return false
+        }
+        if brand.hasPrefix("avis") {
+            print("🎬 [AVIF] ftyp brand=\(brand)，识别为序列/动画 AVIF")
+            return true
+        }
+        return false
     }
 
     // 编码动画 WebP

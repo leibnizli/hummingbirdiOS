@@ -102,6 +102,8 @@ class MediaItem: Identifiable, ObservableObject {
     @Published var isAnimatedWebP: Bool = false
     @Published var webpFrameCount: Int = 0
     @Published var preservedAnimation: Bool = false  // 是否保留了动画
+    @Published var isAnimatedAVIF: Bool = false
+    @Published var avifFrameCount: Int = 0
     
     // PNG compression metadata (actual applied engine details)
     @Published var pngCompressionReport: PNGCompressionReport?

@@ -116,6 +116,69 @@ struct AVIFCompressor {
         )
     }
     
+    /// Re-encode animated AVIF data while preserving frames
+    static func compressAnimated(
+        avifData: Data,
+        quality: Double = 0.85,
+        speedPreset: AVIFSpeedPreset = .balanced,
+        progressHandler: ((Float) -> Void)? = nil
+    ) async -> AVIFCompressionResult? {
+        progressHandler?(0.05)
+        let originalSize = avifData.count
+        let tempDir = FileManager.default.temporaryDirectory
+        let inputURL = tempDir.appendingPathComponent(UUID().uuidString + "_animated.avif")
+        let outputURL = tempDir.appendingPathComponent(UUID().uuidString + "_animated_out.avif")
+        
+        defer {
+            try? FileManager.default.removeItem(at: inputURL)
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+        
+        do {
+            try avifData.write(to: inputURL)
+        } catch {
+            print("❌ [AVIF] Failed to write animated AVIF temp input file: \(error)")
+            return nil
+        }
+        
+        let crf = calculateCRF(from: quality)
+        let cpuUsed = speedPreset.cpuUsedValue
+        let args = [
+            "-y",
+            "-i", "\"\(inputURL.path)\"",
+            "-c:v", "libaom-av1",
+            "-crf", "\(crf)",
+            "-cpu-used", "\(cpuUsed)",
+            "-pix_fmt", "yuv420p",
+            "-an",
+            "\"\(outputURL.path)\""
+        ]
+        let command = args.joined(separator: " ")
+        
+        print("🎬 [AVIF] Re-encoding animated AVIF - quality=\(Int(quality * 100))% (CRF \(crf)), speed=\(speedPreset.rawValue)")
+        print("🔧 [AVIF] Animated FFmpeg command: ffmpeg \(command)")
+        progressHandler?(0.2)
+        let session = FFmpegKit.execute(command)
+        guard let returnCode = session?.getReturnCode(), ReturnCode.isSuccess(returnCode) else {
+            let output = session?.getOutput() ?? "Unknown error"
+            print("❌ [AVIF] Animated FFmpeg encoding failed: \(output)")
+            return nil
+        }
+        progressHandler?(0.9)
+        guard let compressedData = try? Data(contentsOf: outputURL) else {
+            print("❌ [AVIF] Failed to read animated AVIF output")
+            return nil
+        }
+        let compressedSize = compressedData.count
+        print("✅ [AVIF] Animated compression success - Original: \(originalSize) bytes -> \(compressedSize) bytes")
+        progressHandler?(1.0)
+        return AVIFCompressionResult(
+            data: compressedData,
+            originalSize: originalSize,
+            compressedSize: compressedSize
+        )
+    }
+    
     /// Calculate CRF value from quality percentage
     /// Quality 100% → CRF 10 (best)
     /// Quality 85% → CRF 23 (recommended default)
@@ -167,5 +230,30 @@ struct AVIFCompressor {
         
         print("✅ [AVIF Decode] Successfully decoded AVIF to UIImage")
         return image
+    }
+    
+    /// Detect total frame count for an AVIF image sequence using ffprobe
+    static func detectFrameCount(avifData: Data) async -> Int {
+        let tempDir = FileManager.default.temporaryDirectory
+        let inputURL = tempDir.appendingPathComponent(UUID().uuidString + "_frames.avif")
+        defer { try? FileManager.default.removeItem(at: inputURL) }
+        do {
+            try avifData.write(to: inputURL)
+        } catch {
+            print("❌ [AVIF] Failed to write temp file for frame detection: \(error)")
+            return 0
+        }
+        let command = "-v error -select_streams v:0 -count_frames -show_entries stream=nb_read_frames -of default=nokey=1:noprint_wrappers=1 \"\(inputURL.path)\""
+        let session = FFprobeKit.execute(command)
+        guard let returnCode = session?.getReturnCode(), ReturnCode.isSuccess(returnCode) else {
+            print("⚠️ [AVIF] Frame count detection failed: \(session?.getOutput() ?? "unknown error")")
+            return 0
+        }
+        let output = session?.getOutput() ?? session?.getLogsAsString() ?? ""
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let count = Int(trimmed) {
+            return count
+        }
+        return 0
     }
 }

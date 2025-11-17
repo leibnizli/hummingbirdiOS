@@ -314,6 +314,9 @@ class CompressionSettings: ObservableObject {
     @Published var preserveAnimatedWebP: Bool = true {
         didSet { UserDefaults.standard.set(preserveAnimatedWebP, forKey: "preserveAnimatedWebP") }
     }
+    @Published var preserveAnimatedAVIF: Bool = true {
+        didSet { UserDefaults.standard.set(preserveAnimatedAVIF, forKey: "preserveAnimatedAVIF") }
+    }
     @Published var preferHEIC: Bool = false {
         didSet { UserDefaults.standard.set(preferHEIC, forKey: "preferHEIC") }
     }
@@ -437,6 +440,9 @@ class CompressionSettings: ObservableObject {
         }
         if UserDefaults.standard.object(forKey: "preserveAnimatedWebP") != nil {
             self.preserveAnimatedWebP = UserDefaults.standard.bool(forKey: "preserveAnimatedWebP")
+        }
+        if UserDefaults.standard.object(forKey: "preserveAnimatedAVIF") != nil {
+            self.preserveAnimatedAVIF = UserDefaults.standard.bool(forKey: "preserveAnimatedAVIF")
         }
         if UserDefaults.standard.object(forKey: "preferHEIC") != nil {
             self.preferHEIC = UserDefaults.standard.bool(forKey: "preferHEIC")
