@@ -526,6 +526,7 @@ struct CompressionViewImage: View {
                     item.compressedResolution = nil
                     item.compressedVideoURL = nil
                     item.errorMessage = nil
+                    item.preservedAnimation = false
                 }
             }
             
@@ -656,7 +657,14 @@ struct CompressionViewImage: View {
                         if let compressedAnimated = SDAnimatedImage(data: compressed) {
                             let compressedFrameCount = compressedAnimated.animatedImageFrameCount
                             item.preservedAnimation = compressedFrameCount > 1
+                            item.webpFrameCount = Int(compressedFrameCount)
                             print("📊 [CompressionView] 压缩后 WebP - 帧数: \(compressedFrameCount), 保留动画: \(item.preservedAnimation)")
+                        } else {
+                            // 无法解析压缩结果时，根据设置回退
+                            item.preservedAnimation = settings.preserveAnimatedWebP
+                            if !settings.preserveAnimatedWebP {
+                                item.webpFrameCount = 1
+                            }
                         }
                     }
                     if item.isAnimatedAVIF {
