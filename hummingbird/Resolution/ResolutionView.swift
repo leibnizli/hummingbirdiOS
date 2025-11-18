@@ -45,194 +45,196 @@ struct ResolutionView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Top Selection Button
+        NavigationView {
             VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    // Left: Source Dropdown Menu
-                    Menu {
-                        Button(action: { showingPhotoPicker = true }) {
-                            Label("Select from Photos", systemImage: "photo.on.rectangle.angled")
-                        }
-                        
-                        Button(action: { showingFilePicker = true }) {
-                            Label("Select from Files", systemImage: "folder.fill")
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("Add File")
-                                .font(.system(size: 15, weight: .semibold))
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.blue)
-                    .disabled(isProcessing || hasLoadingItems)
-                    
-                    // 右侧：开始按钮
-                    Button(action: startBatchResize) {
-                        HStack(spacing: 6) {
-                            if isProcessing || hasLoadingItems {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                    .font(.system(size: 16, weight: .bold))
-                            }
-                            Text(isProcessing ? "Processing" : hasLoadingItems ? "Loading" : "Start")
-                                .font(.system(size: 15, weight: .bold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(mediaItems.isEmpty || isProcessing || hasLoadingItems ? .gray : .green)
-                    .disabled(mediaItems.isEmpty || isProcessing || hasLoadingItems)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(uiColor: .systemGroupedBackground))
-                
-                // 底部分隔线
-                Rectangle()
-                    .fill(Color(uiColor: .separator).opacity(0.5))
-                    .frame(height: 0.5)
-            }
-            
-            // 设置区域
-            VStack(spacing: 0) {
-                // 目标分辨率选择
-                HStack {
-                    Text("Target Resolution")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Picker("", selection: $settings.targetResolution) {
-                        ForEach(ImageResolution.allCases) { resolution in
-                            Text(resolution.rawValue).tag(resolution)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                
-                // 自定义分辨率输入
-                if settings.targetResolution == .custom {
-                    Divider()
-                        .padding(.leading, 16)
-                    
+                // Top Selection Button
+                VStack(spacing: 0) {
                     HStack(spacing: 12) {
-                        HStack {
-                            Text("Width")
-                                .font(.system(size: 15))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 45, alignment: .leading)
-                            TextField("1920", value: $settings.customWidth, formatter: NumberFormatter.noGrouping)
-                                .keyboardType(.numberPad)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 80)
-                            Text("px")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
+                        // Left: Source Dropdown Menu
+                        Menu {
+                            Button(action: { showingPhotoPicker = true }) {
+                                Label("Select from Photos", systemImage: "photo.on.rectangle.angled")
+                            }
+                            
+                            Button(action: { showingFilePicker = true }) {
+                                Label("Select from Files", systemImage: "folder.fill")
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Add File")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
+                        .disabled(isProcessing || hasLoadingItems)
                         
-                        HStack {
-                            Text("Height")
-                                .font(.system(size: 15))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 48, alignment: .leading)
-                            TextField("1080", value: $settings.customHeight, formatter: NumberFormatter.noGrouping)
-                                .keyboardType(.numberPad)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 80)
-                            Text("px")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
+                        // 右侧：开始按钮
+                        Button(action: startBatchResize) {
+                            HStack(spacing: 6) {
+                                if isProcessing || hasLoadingItems {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.system(size: 16, weight: .bold))
+                                }
+                                Text(isProcessing ? "Processing" : hasLoadingItems ? "Loading" : "Start")
+                                    .font(.system(size: 15, weight: .bold))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(mediaItems.isEmpty || isProcessing || hasLoadingItems ? .gray : .green)
+                        .disabled(mediaItems.isEmpty || isProcessing || hasLoadingItems)
                     }
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+                    .background(Color(uiColor: .systemGroupedBackground))
+                    
+                    // 底部分隔线
+                    Rectangle()
+                        .fill(Color(uiColor: .separator).opacity(0.5))
+                        .frame(height: 0.5)
                 }
                 
-                Divider()
-                    .padding(.leading, 16)
-                
-                // 缩放模式选择
-                VStack(alignment: .leading, spacing: 8) {
+                // 设置区域
+                VStack(spacing: 0) {
+                    // 目标分辨率选择
                     HStack {
-                        Text("Scale Mode")
+                        Text("Target Resolution")
                             .font(.system(size: 15))
                             .foregroundStyle(.primary)
                         Spacer()
-                        Picker("", selection: $settings.resizeMode) {
-                            ForEach(ResizeMode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
+                        Picker("", selection: $settings.targetResolution) {
+                            ForEach(ImageResolution.allCases) { resolution in
+                                Text(resolution.rawValue).tag(resolution)
                             }
                         }
-                        .pickerStyle(.segmented)
-                        .frame(width: 180)
+                        .pickerStyle(.menu)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    
+                    // 自定义分辨率输入
+                    if settings.targetResolution == .custom {
+                        Divider()
+                            .padding(.leading, 16)
+                        
+                        HStack(spacing: 12) {
+                            HStack {
+                                Text("Width")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 45, alignment: .leading)
+                                TextField("1920", value: $settings.customWidth, formatter: NumberFormatter.noGrouping)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 80)
+                                Text("px")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("Height")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 48, alignment: .leading)
+                                TextField("1080", value: $settings.customHeight, formatter: NumberFormatter.noGrouping)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 80)
+                                Text("px")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 12)
                     }
                     
-                    Text(settings.resizeMode.description)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                
-                Rectangle()
-                    .fill(Color(uiColor: .separator).opacity(0.5))
-                    .frame(height: 0.5)
-            }
-            .background(Color(uiColor: .systemBackground))
-            
-            // 文件列表
-            if mediaItems.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "photo.stack")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.secondary)
-                    Text("Adjust media resolution")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List {
-                    ForEach(mediaItems) { item in
-                        ResolutionItemRow(item: item)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                            .listRowSeparator(.visible)
-                    }
-                    .onDelete { indexSet in
-                        // 只有在不处理且没有加载项时才允许删除
-                        guard !isProcessing && !hasLoadingItems else { return }
+                    Divider()
+                        .padding(.leading, 16)
+                    
+                    // 缩放模式选择
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Scale Mode")
+                                .font(.system(size: 15))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Picker("", selection: $settings.resizeMode) {
+                                ForEach(ResizeMode.allCases) { mode in
+                                    Text(mode.rawValue).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 180)
+                        }
                         
-                        // 检查是否删除了正在播放的音频
-                        for index in indexSet {
-                            let item = mediaItems[index]
-                            if item.isAudio && AudioPlayerManager.shared.isCurrentAudio(itemId: item.id) {
-                                AudioPlayerManager.shared.stop()
+                        Text(settings.resizeMode.description)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    
+                    Rectangle()
+                        .fill(Color(uiColor: .separator).opacity(0.5))
+                        .frame(height: 0.5)
+                }
+                .background(Color(uiColor: .systemBackground))
+                
+                // 文件列表
+                if mediaItems.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "photo.stack")
+                            .font(.system(size: 60))
+                            .foregroundStyle(.secondary)
+                        Text("Adjust media resolution")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(mediaItems) { item in
+                            ResolutionItemRow(item: item)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowSeparator(.visible)
+                        }
+                        .onDelete { indexSet in
+                            // 只有在不处理且没有加载项时才允许删除
+                            guard !isProcessing && !hasLoadingItems else { return }
+                            
+                            // 检查是否删除了正在播放的音频
+                            for index in indexSet {
+                                let item = mediaItems[index]
+                                if item.isAudio && AudioPlayerManager.shared.isCurrentAudio(itemId: item.id) {
+                                    AudioPlayerManager.shared.stop()
+                                }
+                            }
+                            
+                            withAnimation {
+                                mediaItems.remove(atOffsets: indexSet)
                             }
                         }
-                        
-                        withAnimation {
-                            mediaItems.remove(atOffsets: indexSet)
-                        }
+                        .deleteDisabled(isProcessing || hasLoadingItems)
                     }
-                    .deleteDisabled(isProcessing || hasLoadingItems)
+                    .listStyle(.plain)
                 }
-                .listStyle(.plain)
             }
+            .navigationTitle("Adjust Resolution")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .navigationTitle("Adjust Resolution")
-        .navigationBarTitleDisplayMode(.inline)
         .onTapGesture {
             UIApplication.shared.hideKeyboard()
         }

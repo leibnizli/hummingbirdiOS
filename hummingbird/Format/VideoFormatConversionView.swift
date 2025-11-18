@@ -87,7 +87,7 @@ struct VideoFormatConversionView: View {
             //MARK: 设置区域
             VStack(spacing: 0) {
                 HStack {
-                    Text("Target Format")
+                    Text("Target Video Format")
                         .font(.system(size: 15))
                         .foregroundStyle(.primary)
                     Spacer()
