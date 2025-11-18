@@ -344,7 +344,7 @@ class CompressionSettings: ObservableObject {
     @Published var pngLossy8bit: Bool = false {
         didSet { UserDefaults.standard.set(pngLossy8bit, forKey: "pngLossy8bit") }
     }
-    @Published var pngCompressionTool: PNGCompressionTool = .appleOptimized {
+    @Published var pngCompressionTool: PNGCompressionTool = .pngquant {
         didSet { UserDefaults.standard.set(pngCompressionTool.rawValue, forKey: "pngCompressionTool") }
     }
     @Published var pngQuantMinQuality: Double = 0.6 {

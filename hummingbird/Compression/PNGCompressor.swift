@@ -19,8 +19,7 @@ struct PNGCompressor { }
 
 extension PNGCompressor {
 
-    /// Compress PNGs using system-only tooling. Applies simple heuristics to switch between
-    /// grayscale, indexed palette, RGB, or RGBA encodings and always keeps the smaller result.
+    /// Compress PNGs using system-only tooling. Applies color quantization and optimized encoding.
     static func compressWithAppleOptimized(
         image: UIImage,
         originalData: Data?,
@@ -38,6 +37,44 @@ extension PNGCompressor {
                     continuation.resume(returning: nil)
                     return
                 }
+
+                // Check for alpha channel
+                let hasAlpha = cgImage.alphaInfo != .none &&
+                               cgImage.alphaInfo != .noneSkipFirst &&
+                               cgImage.alphaInfo != .noneSkipLast
+
+                progressHandler?(0.1)
+
+                // Use CIImage for color quantization
+                let ciImage = CIImage(cgImage: cgImage)
+                let ciContext = CIContext(options: [
+                    .useSoftwareRenderer: false,
+                    .workingColorSpace: CGColorSpace(name: CGColorSpace.sRGB) as Any
+                ])
+
+                progressHandler?(0.2)
+
+                // Apply color quantization using CIColorPosterize filter
+                var processedImage = ciImage
+                if let posterizeFilter = CIFilter(name: "CIColorPosterize") {
+                    posterizeFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                    // Reduce color levels to compress better (higher = better quality, lower = more compression)
+                    // 20-32 provides excellent quality with moderate compression
+                    posterizeFilter.setValue(24, forKey: "inputLevels")
+                    if let outputImage = posterizeFilter.outputImage {
+                        processedImage = outputImage
+                    }
+                }
+
+                progressHandler?(0.4)
+
+                // Render to CGImage
+                guard let quantizedCGImage = ciContext.createCGImage(processedImage, from: processedImage.extent) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                progressHandler?(0.5)
 
                 let pixelCount = width * height
                 let bytesPerPixel = 4
@@ -57,8 +94,8 @@ extension PNGCompressor {
                     return
                 }
 
-                context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-                progressHandler?(0.15)
+                context.draw(quantizedCGImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+                progressHandler?(0.55)
 
                 var isGrayscale = true
                 var isFullyOpaque = true
@@ -225,8 +262,9 @@ extension PNGCompressor {
                     return
                 }
 
-                progressHandler?(0.55)
+                progressHandler?(0.6)
 
+                // Try different PNG filters and pick the smallest result
                 let filterCandidates: [(Int, String)] = [
                     (5, "Adaptive"),
                     (4, "Paeth"),
@@ -281,15 +319,23 @@ extension PNGCompressor {
                 var outputData = optimizedData
                 var finalColorMode = colorMode
                 var finalOptimizations = optimizations
+                finalOptimizations.append("Applied color quantization (24 levels)")
                 if let filterLabel = bestFilterLabel {
                     finalOptimizations.append("PNG filter: \(filterLabel)")
                 }
 
-                if let originalData, !originalData.isEmpty, originalData.count <= optimizedData.count {
-                    outputData = originalData
-                    finalColorMode = "Original"
-                    finalOptimizations.append("Kept original PNG (smaller)")
-                    reportPaletteSize = nil
+                // Compare with original and use the smaller one
+                if let originalData, !originalData.isEmpty {
+                    if originalData.count < optimizedData.count {
+                        outputData = originalData
+                        finalColorMode = "Original"
+                        finalOptimizations = ["Kept original PNG (smaller than quantized)"]
+                        reportPaletteSize = nil
+                    } else {
+                        let savedBytes = originalData.count - optimizedData.count
+                        let savedPercent = Double(savedBytes) / Double(originalData.count) * 100
+                        finalOptimizations.append(String(format: "Saved %d bytes (%.1f%%)", savedBytes, savedPercent))
+                    }
                 }
 
                 progressHandler?(0.95)
