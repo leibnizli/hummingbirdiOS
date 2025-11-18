@@ -87,6 +87,28 @@ struct PNGCompressionReport {
     let lossy8bit: Bool?
     let paletteSize: Int?
     let quantizationQuality: Int?
+    let appleColorMode: String?
+    let appleOptimizations: [String]?
+
+    init(tool: PNGCompressionTool,
+         zopfliIterations: Int? = nil,
+         zopfliIterationsLarge: Int? = nil,
+         lossyTransparent: Bool? = nil,
+         lossy8bit: Bool? = nil,
+         paletteSize: Int? = nil,
+         quantizationQuality: Int? = nil,
+         appleColorMode: String? = nil,
+         appleOptimizations: [String]? = nil) {
+        self.tool = tool
+        self.zopfliIterations = zopfliIterations
+        self.zopfliIterationsLarge = zopfliIterationsLarge
+        self.lossyTransparent = lossyTransparent
+        self.lossy8bit = lossy8bit
+        self.paletteSize = paletteSize
+        self.quantizationQuality = quantizationQuality
+        self.appleColorMode = appleColorMode
+        self.appleOptimizations = appleOptimizations
+    }
 }
 
 final class MediaCompressor {
@@ -523,6 +545,25 @@ final class MediaCompressor {
                 pngDataToCompress = image.pngData() ?? Data()
             }
             switch settings.pngCompressionTool {
+            case .appleOptimized:
+                let fallbackData: Data? = resolutionChanged ? nil : (pngDataToCompress.isEmpty ? nil : pngDataToCompress)
+                if let result = await PNGCompressor.compressWithAppleOptimized(
+                    image: image,
+                    originalData: fallbackData,
+                    progressHandler: { progress in
+                        let mapped = 0.3 + (progress * 0.7)
+                        progressHandler?(mapped)
+                    }
+                ) {
+                    Self.lastPNGCompressionReport = result.report
+                    print("✅ [PNG] Apple optimized success - size: \(result.data.count) bytes")
+                    return result.data
+                } else {
+                    print("⚠️ [PNG] Apple optimized compressor failed, falling back to original PNG")
+                    Self.lastPNGCompressionReport = nil
+                    progressHandler?(1.0)
+                    return image.pngData() ?? pngDataToCompress
+                }
             case .zopfli:
                 if let result = await PNGCompressor.compressWithOriginalData(
                     pngData: pngDataToCompress,

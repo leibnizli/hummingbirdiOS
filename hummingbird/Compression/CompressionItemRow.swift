@@ -321,6 +321,22 @@ struct CompressionItemRow: View {
                                                 .fontWeight(.semibold)
                                                 .foregroundStyle(.blue)
                                             switch report.tool {
+                                            case .appleOptimized:
+                                                if let mode = report.appleColorMode {
+                                                    Text("Color mode: \(mode)")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                                if let palette = report.paletteSize {
+                                                    Text("Palette: \(palette) colors")
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                                if let optimizations = report.appleOptimizations, !optimizations.isEmpty {
+                                                    Text(optimizations.joined(separator: ", "))
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
                                             case .zopfli:
                                                 if let smallIter = report.zopfliIterations,
                                                    let largeIter = report.zopfliIterationsLarge {

@@ -271,6 +271,7 @@ enum AudioChannels: String, CaseIterable, Identifiable {
 
 // MARK: - PNG Compression Tool
 enum PNGCompressionTool: String, CaseIterable, Identifiable {
+    case appleOptimized
     case zopfli
     case pngquant
 
@@ -278,6 +279,7 @@ enum PNGCompressionTool: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
+        case .appleOptimized: return "Adaptive (Apple)"
         case .zopfli: return "Zopfli (lossless)"
         case .pngquant: return "pngquant (palette)"
         }
@@ -285,6 +287,8 @@ enum PNGCompressionTool: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
+        case .appleOptimized:
+            return "Uses Apple frameworks to re-encode with grayscale/RGB/palette heuristics. No external libraries required."
         case .zopfli:
             return "Runs zopflipng for maximal lossless compression and respects lossy 8-bit/alpha options."
         case .pngquant:
@@ -340,7 +344,7 @@ class CompressionSettings: ObservableObject {
     @Published var pngLossy8bit: Bool = false {
         didSet { UserDefaults.standard.set(pngLossy8bit, forKey: "pngLossy8bit") }
     }
-    @Published var pngCompressionTool: PNGCompressionTool = .pngquant {
+    @Published var pngCompressionTool: PNGCompressionTool = .appleOptimized {
         didSet { UserDefaults.standard.set(pngCompressionTool.rawValue, forKey: "pngCompressionTool") }
     }
     @Published var pngQuantMinQuality: Double = 0.6 {

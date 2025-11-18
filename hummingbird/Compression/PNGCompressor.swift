@@ -5,6 +5,8 @@
 //  PNG Compressor - Color quantization compression using system built-in methods
 import UIKit
 import Darwin
+import ImageIO
+import UniformTypeIdentifiers
 
 typealias liq_result = OpaquePointer
 
@@ -16,6 +18,296 @@ struct PNGCompressionResult {
 struct PNGCompressor { }
 
 extension PNGCompressor {
+
+    /// Compress PNGs using system-only tooling. Applies simple heuristics to switch between
+    /// grayscale, indexed palette, RGB, or RGBA encodings and always keeps the smaller result.
+    static func compressWithAppleOptimized(
+        image: UIImage,
+        originalData: Data?,
+        progressHandler: ((Float) -> Void)? = nil
+    ) async -> PNGCompressionResult? {
+        guard let cgImage = image.cgImage else { return nil }
+
+        return await withCheckedContinuation { (continuation: CheckedContinuation<PNGCompressionResult?, Never>) in
+            let workItem = DispatchWorkItem {
+                progressHandler?(0.05)
+
+                let width = cgImage.width
+                let height = cgImage.height
+                guard width > 0, height > 0 else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let pixelCount = width * height
+                let bytesPerPixel = 4
+                let bytesPerRow = width * bytesPerPixel
+
+                var rgbaBuffer = [UInt8](repeating: 0, count: bytesPerRow * height)
+                guard let context = CGContext(
+                    data: &rgbaBuffer,
+                    width: width,
+                    height: height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: bytesPerRow,
+                    space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+                ) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+                progressHandler?(0.15)
+
+                var isGrayscale = true
+                var isFullyOpaque = true
+                var paletteCandidate = true
+
+                var colorToIndex: [UInt32: UInt8] = [:]
+                colorToIndex.reserveCapacity(64)
+                var paletteOrder: [UInt32] = []
+                paletteOrder.reserveCapacity(64)
+                var paletteIndexes = [UInt8](repeating: 0, count: pixelCount)
+
+                for pixel in 0..<pixelCount {
+                    let offset = pixel * bytesPerPixel
+                    let r = rgbaBuffer[offset]
+                    let g = rgbaBuffer[offset + 1]
+                    let b = rgbaBuffer[offset + 2]
+                    let a = rgbaBuffer[offset + 3]
+
+                    if isGrayscale && (r != g || g != b) {
+                        isGrayscale = false
+                    }
+                    if isFullyOpaque && a != 255 {
+                        isFullyOpaque = false
+                    }
+
+                    if paletteCandidate && isFullyOpaque {
+                        let key = (UInt32(r) << 16) | (UInt32(g) << 8) | UInt32(b)
+                        if let existing = colorToIndex[key] {
+                            paletteIndexes[pixel] = existing
+                        } else {
+                            if paletteOrder.count >= 256 {
+                                paletteCandidate = false
+                            } else {
+                                let newIndex = UInt8(paletteOrder.count)
+                                colorToIndex[key] = newIndex
+                                paletteOrder.append(key)
+                                paletteIndexes[pixel] = newIndex
+                            }
+                        }
+                    }
+                }
+
+                if !isFullyOpaque {
+                    paletteCandidate = false
+                }
+
+                progressHandler?(0.35)
+
+                var optimizations: [String] = []
+                var reportPaletteSize: Int? = nil
+                var colorMode = "RGBA"
+                var finalImage: CGImage?
+
+                if isFullyOpaque && isGrayscale {
+                    var grayBuffer = [UInt8](repeating: 0, count: pixelCount)
+                    for pixel in 0..<pixelCount {
+                        grayBuffer[pixel] = rgbaBuffer[pixel * bytesPerPixel]
+                    }
+
+                    let grayData = Data(grayBuffer)
+                    if let provider = CGDataProvider(data: grayData as CFData) {
+                        finalImage = CGImage(
+                            width: width,
+                            height: height,
+                            bitsPerComponent: 8,
+                            bitsPerPixel: 8,
+                            bytesPerRow: width,
+                            space: CGColorSpaceCreateDeviceGray(),
+                            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                            provider: provider,
+                            decode: nil,
+                            shouldInterpolate: false,
+                            intent: .defaultIntent
+                        )
+                        colorMode = "Grayscale"
+                        optimizations.append("Converted to 8-bit grayscale")
+                    }
+                } else if isFullyOpaque && paletteCandidate && !paletteOrder.isEmpty {
+                    var colorTable = [UInt8](repeating: 0, count: paletteOrder.count * 3)
+                    for (index, color) in paletteOrder.enumerated() {
+                        let base = index * 3
+                        colorTable[base] = UInt8((color >> 16) & 0xFF)
+                        colorTable[base + 1] = UInt8((color >> 8) & 0xFF)
+                        colorTable[base + 2] = UInt8(color & 0xFF)
+                    }
+
+                    let paletteData = Data(paletteIndexes)
+                    let baseSpace = CGColorSpaceCreateDeviceRGB()
+                    let paletteSpace = colorTable.withUnsafeBufferPointer { buffer -> CGColorSpace? in
+                        guard let baseAddress = buffer.baseAddress else { return nil }
+                        return CGColorSpace(indexedBaseSpace: baseSpace, last: paletteOrder.count - 1, colorTable: baseAddress)
+                    }
+
+                    if let paletteSpace, let provider = CGDataProvider(data: paletteData as CFData) {
+                        finalImage = CGImage(
+                            width: width,
+                            height: height,
+                            bitsPerComponent: 8,
+                            bitsPerPixel: 8,
+                            bytesPerRow: width,
+                            space: paletteSpace,
+                            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                            provider: provider,
+                            decode: nil,
+                            shouldInterpolate: false,
+                            intent: .defaultIntent
+                        )
+                        colorMode = "Indexed"
+                        reportPaletteSize = paletteOrder.count
+                        optimizations.append("Converted to indexed palette (\(paletteOrder.count) colors)")
+                    }
+                } else if isFullyOpaque {
+                    var rgbBuffer = [UInt8](repeating: 0, count: pixelCount * 3)
+                    for pixel in 0..<pixelCount {
+                        let rgbaOffset = pixel * bytesPerPixel
+                        let rgbOffset = pixel * 3
+                        rgbBuffer[rgbOffset] = rgbaBuffer[rgbaOffset]
+                        rgbBuffer[rgbOffset + 1] = rgbaBuffer[rgbaOffset + 1]
+                        rgbBuffer[rgbOffset + 2] = rgbaBuffer[rgbaOffset + 2]
+                    }
+
+                    let rgbData = Data(rgbBuffer)
+                    if let provider = CGDataProvider(data: rgbData as CFData) {
+                        finalImage = CGImage(
+                            width: width,
+                            height: height,
+                            bitsPerComponent: 8,
+                            bitsPerPixel: 24,
+                            bytesPerRow: width * 3,
+                            space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                            provider: provider,
+                            decode: nil,
+                            shouldInterpolate: false,
+                            intent: .defaultIntent
+                        )
+                        colorMode = "RGB"
+                        optimizations.append("Dropped alpha channel (fully opaque)")
+                    }
+                }
+
+                if finalImage == nil {
+                    let rgbaData = Data(rgbaBuffer)
+                    if let provider = CGDataProvider(data: rgbaData as CFData) {
+                        finalImage = CGImage(
+                            width: width,
+                            height: height,
+                            bitsPerComponent: 8,
+                            bitsPerPixel: 32,
+                            bytesPerRow: bytesPerRow,
+                            space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+                            provider: provider,
+                            decode: nil,
+                            shouldInterpolate: false,
+                            intent: .defaultIntent
+                        )
+                        colorMode = "RGBA"
+                    }
+                }
+
+                guard let finalImage else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                progressHandler?(0.55)
+
+                let filterCandidates: [(Int, String)] = [
+                    (5, "Adaptive"),
+                    (4, "Paeth"),
+                    (3, "Average"),
+                    (2, "Up"),
+                    (1, "Sub"),
+                    (0, "None")
+                ]
+
+                var bestData: Data?
+                var bestFilterLabel: String?
+
+                for (filterValue, filterLabel) in filterCandidates {
+                    let attemptData = NSMutableData()
+                    guard let attemptDestination = CGImageDestinationCreateWithData(
+                        attemptData,
+                        UTType.png.identifier as CFString,
+                        1,
+                        nil
+                    ) else { continue }
+
+                    let pngDictionary: [CFString: Any] = [
+                        kCGImagePropertyPNGCompressionFilter: filterValue
+                    ]
+
+                    let attemptOptions: [CFString: Any] = [
+                        kCGImageDestinationOptimizeColorForSharing: true,
+                        kCGImagePropertyPNGDictionary: pngDictionary
+                    ]
+
+                    CGImageDestinationAddImage(attemptDestination, finalImage, attemptOptions as CFDictionary)
+
+                    guard CGImageDestinationFinalize(attemptDestination) else { continue }
+
+                    let candidate = attemptData as Data
+                    if let currentBest = bestData {
+                        if candidate.count < currentBest.count {
+                            bestData = candidate
+                            bestFilterLabel = filterLabel
+                        }
+                    } else {
+                        bestData = candidate
+                        bestFilterLabel = filterLabel
+                    }
+                }
+
+                guard let optimizedData = bestData else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                var outputData = optimizedData
+                var finalColorMode = colorMode
+                var finalOptimizations = optimizations
+                if let filterLabel = bestFilterLabel {
+                    finalOptimizations.append("PNG filter: \(filterLabel)")
+                }
+
+                if let originalData, !originalData.isEmpty, originalData.count <= optimizedData.count {
+                    outputData = originalData
+                    finalColorMode = "Original"
+                    finalOptimizations.append("Kept original PNG (smaller)")
+                    reportPaletteSize = nil
+                }
+
+                progressHandler?(0.95)
+
+                let report = PNGCompressionReport(
+                    tool: .appleOptimized,
+                    paletteSize: reportPaletteSize,
+                    appleColorMode: finalColorMode,
+                    appleOptimizations: finalOptimizations
+                )
+
+                progressHandler?(1.0)
+                let result = PNGCompressionResult(data: outputData, report: report)
+                continuation.resume(returning: result)
+            }
+            DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
+        }
+    }
 
     /// Compress PNG using original PNG data (not re-encoded from UIImage)
     /// This preserves the original PNG structure for better compression.

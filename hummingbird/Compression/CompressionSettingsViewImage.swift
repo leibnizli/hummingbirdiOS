@@ -14,18 +14,15 @@ struct CompressionSettingsViewImage: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Content
                 Form {
-                    // Image Settings
+                    // Resolution controls
                     Section {
-                        // Target resolution
                         Picker("Target Resolution", selection: $settings.targetImageResolution) {
                             ForEach(ImageResolutionTarget.allCases) { resolution in
                                 Text(resolution.displayName).tag(resolution)
                             }
                         }
                         
-                        // Target orientation mode
                         if settings.targetImageResolution != .original {
                             Picker("Target Orientation", selection: $settings.targetImageOrientationMode) {
                                 ForEach(OrientationMode.allCases) { mode in
@@ -33,13 +30,13 @@ struct CompressionSettingsViewImage: View {
                                 }
                             }
                             
-                            // Explanation text
                             VStack(alignment: .leading, spacing: 4) {
-                                if settings.targetImageOrientationMode == .auto {
+                                switch settings.targetImageOrientationMode {
+                                case .auto:
                                     Text("Auto: Target resolution will match the original image's orientation")
-                                } else if settings.targetImageOrientationMode == .landscape {
+                                case .landscape:
                                     Text("Landscape: Target resolution will be in landscape format (e.g., 1920×1080)")
-                                } else {
+                                case .portrait:
                                     Text("Portrait: Target resolution will be in portrait format (e.g., 1080×1920)")
                                 }
                             }
@@ -56,6 +53,7 @@ struct CompressionSettingsViewImage: View {
                         }
                     }
                     
+                    // Quality controls
                     Section {
                         Toggle("Prefer HEIC", isOn: $settings.preferHEIC)
                         
@@ -99,7 +97,6 @@ struct CompressionSettingsViewImage: View {
                                     .foregroundStyle(.secondary)
                             }
                             Slider(value: $settings.avifQuality, in: 0.1...1.0, step: 0.05)
-                            
                             Text("Next-gen format with excellent compression. Requires iOS 16+ for native preview.")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -129,6 +126,7 @@ struct CompressionSettingsViewImage: View {
                                     .foregroundStyle(.orange)
                             }
                         }
+                        
                         VStack(alignment: .leading, spacing: 6) {
                             Toggle("Preserve Animated AVIF", isOn: $settings.preserveAnimatedAVIF)
                             
@@ -147,6 +145,7 @@ struct CompressionSettingsViewImage: View {
                         Text("Higher quality means larger file size. When HEIC is enabled, HEIC images will keep HEIC format; when disabled, MozJPEG will convert to JPEG format. WebP and AVIF formats will be compressed in original format. If compressed file is larger than original, the original will be kept automatically.")
                     }
                     
+                    // PNG compression settings
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
                             Picker("Compression Engine", selection: $settings.pngCompressionTool) {
@@ -158,8 +157,21 @@ struct CompressionSettingsViewImage: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-
-                        if settings.pngCompressionTool == .zopfli {
+                        
+                        switch settings.pngCompressionTool {
+                        case .appleOptimized:
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Re-encodes PNGs using Core Graphics and ImageIO only. Analyzes pixels to strip alpha when fully opaque, convert to grayscale, or build an indexed palette when possible.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("No third-party libraries involved. Keeps output lossless and automatically falls back to the original data if the new file is larger.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("Best for UI assets and photos when you prefer system-only tooling with smart heuristics.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        case .zopfli:
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Text("Zopfli Iterations (Small Images)")
@@ -175,7 +187,7 @@ struct CompressionSettingsViewImage: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
-
+                            
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Text("Zopfli Iterations (Large Images)")
@@ -191,21 +203,21 @@ struct CompressionSettingsViewImage: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
-
+                            
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Allow Lossy Transparent Pixels", isOn: $settings.pngLossyTransparent)
                                 Text("Only applies to images with alpha channel (transparency). Reduces file size by sacrificing transparency quality. Ignored for opaque images.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
                             }
-
+                            
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Convert 16-bit to 8-bit", isOn: $settings.pngLossy8bit)
                                 Text("Only applies to 16-bit per channel images. Reduces precision to 8-bit, which reduces file size but may lose subtle color gradations. Ignored for standard 8-bit images.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
                             }
-                        } else {
+                        case .pngquant:
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("pngquant uses libimagequant to reduce the palette to 256 colors and applies perceptual dithering. This is ideal for UI assets, icons, and graphics with limited colors.")
                                     .font(.caption2)
@@ -213,6 +225,7 @@ struct CompressionSettingsViewImage: View {
                                 Text("Tip: pngquant introduces a small amount of loss to shrink file size dramatically. Use Zopfli if you need strictly lossless output.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
+                                
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
                                         Text("Minimum Quality")
@@ -225,7 +238,7 @@ struct CompressionSettingsViewImage: View {
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
-
+                                
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
                                         Text("Maximum Quality")
@@ -245,7 +258,7 @@ struct CompressionSettingsViewImage: View {
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
-
+                                
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
                                         Text("Speed")
@@ -266,25 +279,26 @@ struct CompressionSettingsViewImage: View {
                     } header: {
                         Text("PNG Compression Settings")
                     } footer: {
-                        if settings.pngCompressionTool == .zopfli {
+                        switch settings.pngCompressionTool {
+                        case .appleOptimized:
+                            Text("System-only pipeline. Automatically strips metadata, converts color space, and keeps whichever result is smaller.")
+                        case .zopfli:
                             Text("Zopfli iterations: Higher values = better compression but slower. Lossy options can further reduce file size but may sacrifice quality. If lossy options don't apply to your image, they are automatically ignored.")
-                        } else {
+                        case .pngquant:
                             Text("pngquant outputs an indexed PNG. Colors are quantized to a smaller palette, which reduces size while preserving perceived detail.")
                         }
                     }
                     
-                    // Open Source Libraries Notice
+                    // Open source notices
                     Section {
                         VStack(alignment: .leading, spacing: 16) {
-                            // JPEG Compression Library
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("JPEG Compression Library")
                                     .font(.headline)
-                                
                                 Text("Uses mozjpeg - Copyright (c) Mozilla Corporation. All rights reserved.")
                                     .font(.caption)
                             }
-
+                            
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("PNG Compression Library")
                                     .font(.headline)
