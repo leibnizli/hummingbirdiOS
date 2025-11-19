@@ -770,8 +770,9 @@ class CompressionSettings: ObservableObject {
         if effectiveCodec == .h264 {
             command += " -tag:v avc1"  // Use avc1 tag for H.264 (AVC)
         } else if effectiveCodec == .h265 {
-            let hevcTag = useTenBitHEVC ? "hev1" : "hvc1"
-            command += " -tag:v \(hevcTag)"  // Adjust sample entry for HEVC compatibility
+            // 使用 hvc1 tag 以兼容更多 iOS 播放器/解码器（包括 10-bit HEVC）
+            // 之前对 10-bit 输出使用 hev1，在某些环境下会导致只有声音没有画面
+            command += " -tag:v hvc1"
         }
 
         
