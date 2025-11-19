@@ -263,8 +263,8 @@ enum AVIFEncoderBackend: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .systemImageIO: return "System (ImageIO)"
-        case .libavif: return "libavif (Native)"
+        case .systemImageIO: return "System (ImageIO) - Fast"
+        case .libavif: return "libavif (Native) - Very Slow"
         }
     }
 

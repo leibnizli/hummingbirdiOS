@@ -109,6 +109,13 @@ struct CompressionSettingsViewImage: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                 
+                                if settings.preserveAnimatedWebP {
+                                    Text("⚠️ Warning: Re-encoding animated WebP can be very slow, especially for long animations.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                        .bold()
+                                }
+                                
                                 Text("Note: If the original is already highly optimized (lossless format), compression may result in a larger file size. In such cases, the original file will be automatically preserved.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
@@ -166,6 +173,14 @@ struct CompressionSettingsViewImage: View {
                                 Text("When enabled, AVIF image sequences keep their motion by re-encoding all frames. Turning it off flattens the sequence into a single still frame.")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
+                                
+                                if settings.preserveAnimatedAVIF {
+                                    Text("⚠️ Warning: Re-encoding animated AVIF can be extremely slow, especially with long animations or slower backends.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                        .bold()
+                                }
+                                
                                 Text("Re-encoding animations may take longer and some files may not shrink much if they are already optimized.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
