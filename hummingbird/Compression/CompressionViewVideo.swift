@@ -344,6 +344,11 @@ struct CompressionViewVideo: View {
             else if contentType.identifier == "org.webmproject.webm" ||
                     contentType.preferredFilenameExtension == "webm" {
                 detectedFormat = "webm"
+                // 标记 WebM 为不支持的格式
+                await MainActor.run {
+                    mediaItem.status = .failed
+                    mediaItem.errorMessage = "WebM format is not supported. This app uses VideoToolbox (H.264/H.265) for video compression, which is incompatible with WebM container."
+                }
                 break
             }
             // 通用视频格式检测
@@ -357,7 +362,7 @@ struct CompressionViewVideo: View {
                 }
             }
         }
-        
+
         await MainActor.run {
             // 设置文件扩展名
             mediaItem.fileExtension = detectedFormat
@@ -366,20 +371,20 @@ struct CompressionViewVideo: View {
                 mediaItem.outputVideoFormat = detectedFormat
             }
         }
-        
+
         // 先尝试使用 URL 方式加载（更高效）
         if let url = try? await item.loadTransferable(type: URL.self) {
             await MainActor.run {
                 mediaItem.sourceVideoURL = url
-                
+
                 // 快速获取文件大小（不加载整个文件）
                 if let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int {
                     mediaItem.originalSize = fileSize
                 }
-                
+
                 // 立即设置为 pending 状态，让用户看到视频已添加
                 mediaItem.status = .pending
-                
+
                 // 在后台异步获取视频信息和缩略图
                 Task {
                     await loadVideoMetadata(for: mediaItem, url: url)
@@ -391,21 +396,21 @@ struct CompressionViewVideo: View {
                 mediaItem.originalData = data
                 mediaItem.originalSize = data.count
             }
-            
+
             // 创建临时文件
             let detectedExtension = mediaItem.fileExtension.isEmpty ? "mp4" : mediaItem.fileExtension
             let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("source_\(mediaItem.id.uuidString)")
                 .appendingPathExtension(detectedExtension)
-            
+
             do {
                 try data.write(to: tempURL)
-                
+
                 await MainActor.run {
                     mediaItem.sourceVideoURL = tempURL
                     // 立即设置为 pending 状态
                     mediaItem.status = .pending
-                    
+
                     // 在后台异步获取视频信息和缩略图
                     Task {
                         await loadVideoMetadata(for: mediaItem, url: tempURL)
@@ -425,10 +430,10 @@ struct CompressionViewVideo: View {
             }
         }
     }
-    
+
     private func loadVideoMetadata(for mediaItem: MediaItem, url: URL) async {
         let asset = AVURLAsset(url: url)
-        
+
         // 异步加载视频轨道信息和时长
         do {
             let tracks = try await asset.loadTracks(withMediaType: .video)
@@ -436,17 +441,17 @@ struct CompressionViewVideo: View {
                 let size = try await videoTrack.load(.naturalSize)
                 let transform = try await videoTrack.load(.preferredTransform)
                 let isPortrait = abs(transform.b) == 1.0 || abs(transform.c) == 1.0
-                
+
                 // 获取帧率
                 let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
-                
+
                 // 获取比特率（估算值，单位为 bits per second）
                 let estimatedDataRate = try await videoTrack.load(.estimatedDataRate)
-                
+
                 await MainActor.run {
                     mediaItem.originalResolution = isPortrait ? CGSize(width: size.height, height: size.width) : size
                     mediaItem.frameRate = Double(nominalFrameRate)
-                    
+
                     // 转换为 kbps
                     if estimatedDataRate > 0 {
                         mediaItem.videoBitrate = Int(estimatedDataRate / 1000)
@@ -454,18 +459,18 @@ struct CompressionViewVideo: View {
                     }
                 }
             }
-            
+
             // 加载视频时长
             let duration = try await asset.load(.duration)
             let durationSeconds = CMTimeGetSeconds(duration)
-            
+
             await MainActor.run {
                 mediaItem.duration = durationSeconds
             }
         } catch {
             print("Failed to load video track info: \(error)")
         }
-        
+
         // AVFoundation 无法解析时，使用 FFprobe 兜底
         let needsFallback = {
             let durationValid = (mediaItem.duration ?? 0) > 0.0
@@ -474,25 +479,25 @@ struct CompressionViewVideo: View {
             let pixelFormatValid = mediaItem.videoPixelFormat != nil || mediaItem.videoBitDepth != nil
             return !durationValid || !frameRateValid || !resolutionValid || !pixelFormatValid
         }()
-        
+
         if needsFallback {
             await loadVideoMetadataFallback(for: mediaItem, url: url)
         }
-        
+
         // 检测视频编码（使用异步版本更可靠）
         if let codec = await MediaItem.detectVideoCodecAsync(from: url) {
             await MainActor.run {
                 mediaItem.videoCodec = codec
-                
+
                 // 记录编码信息，但不再限制格式
                 // FFmpeg 会自动处理各种输入编码格式
                 print("🎬 [Video Codec] 检测到编码: \(codec)")
             }
         }
-        
+
         // 异步生成缩略图
         await generateVideoThumbnailOptimized(for: mediaItem, url: url)
-        
+
         // 视频元数据加载完成，设置为等待状态
         await MainActor.run {
             // 只有在状态不是失败时才设置为 pending
@@ -501,35 +506,35 @@ struct CompressionViewVideo: View {
             }
         }
     }
-    
+
     private func generateThumbnail(from image: UIImage, size: CGSize = CGSize(width: 80, height: 80)) -> UIImage? {
         let aspectRatio = image.size.width / image.size.height
         let targetAspectRatio = size.width / size.height
-        
+
         var targetSize = size
         if aspectRatio > targetAspectRatio {
             targetSize.height = size.width / aspectRatio
         } else {
             targetSize.width = size.height * aspectRatio
         }
-        
+
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
     }
-    
+
     private func generateVideoThumbnailOptimized(for item: MediaItem, url: URL) async {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 160, height: 160)
         generator.apertureMode = .encodedPixels
-        
+
         // 优化：设置更快的缩略图生成选项
         generator.requestedTimeToleranceBefore = CMTime(seconds: 1, preferredTimescale: 600)
         generator.requestedTimeToleranceAfter = CMTime(seconds: 1, preferredTimescale: 600)
-        
+
         // 针对 Dolby Vision 等特殊素材，尝试多个时间点
         let durationSeconds = CMTimeGetSeconds(asset.duration)
         let candidateSeconds: [Double] = {
@@ -541,7 +546,7 @@ struct CompressionViewVideo: View {
             seconds.append(contentsOf: [0.1, 0])
             return Array(Set(seconds)).sorted(by: >)
         }()
-        
+
         for second in candidateSeconds {
             do {
                 let time = CMTime(seconds: second, preferredTimescale: 600)
@@ -562,7 +567,7 @@ struct CompressionViewVideo: View {
             }
             return
         }
-        
+
         // 设置默认视频图标
         await MainActor.run {
             item.thumbnailImage = UIImage(systemName: "video.fill")
@@ -696,9 +701,9 @@ struct CompressionViewVideo: View {
             }
         }
     }
-    
+
     private func startBatchCompression() {
-        
+
         Task {
             // 立即在主线程更新状态
             await MainActor.run {
@@ -706,10 +711,10 @@ struct CompressionViewVideo: View {
                     isCompressing = true
                 }
             }
-            
+
             // 给 UI 一点时间渲染
             try? await Task.sleep(nanoseconds: 150_000_000) // 0.15秒
-            
+
             // 重置所有项目状态，以便重新压缩
             await MainActor.run {
                 for item in mediaItems {
@@ -723,11 +728,21 @@ struct CompressionViewVideo: View {
                     item.infoMessage = nil
                 }
             }
-            
+
             for item in mediaItems {
+                // 跳过 WebM 文件（已标记为失败）
+                if item.fileExtension == "webm" {
+                    await MainActor.run {
+                        if item.status != .failed {
+                            item.status = .failed
+                            item.errorMessage = "WebM format is not supported"
+                        }
+                    }
+                    continue
+                }
                 await compressItem(item)
             }
-            
+
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isCompressing = false
@@ -735,18 +750,27 @@ struct CompressionViewVideo: View {
             }
         }
     }
-    
+
     private func compressItem(_ item: MediaItem) async {
         await MainActor.run {
             item.infoMessage = nil
             item.status = .compressing
             item.progress = 0
         }
-        
+
         await compressVideo(item)
     }
-    
+
     private func compressVideo(_ item: MediaItem) async {
+        // 检查是否为不支持的 WebM 格式
+        if item.fileExtension == "webm" {
+            await MainActor.run {
+                item.status = .failed
+                item.errorMessage = "WebM format is not supported"
+            }
+            return
+        }
+
         // 确保有视频 URL
         guard let sourceURL = item.sourceVideoURL else {
             await MainActor.run {
