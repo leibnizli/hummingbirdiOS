@@ -8,6 +8,7 @@
 import Foundation
 import UniformTypeIdentifiers
 import ImageIO
+import UIKit
 import ffmpegkit
 
 struct AVIFCompressionResult {
@@ -29,8 +30,11 @@ struct AVIFCompressor {
         image: UIImage,
         quality: Double = 0.85,
         speedPreset: AVIFSpeedPreset = .balanced,
+        backend: AVIFEncoderBackend = .systemImageIO,
         progressHandler: ((Float) -> Void)? = nil
     ) async -> AVIFCompressionResult? {
+        
+        print("🧪 [AVIF] Requested backend: \(backend.displayName)")
         
         progressHandler?(0.05)
         
@@ -42,147 +46,251 @@ struct AVIFCompressor {
         
         let originalSize = sourceData.count
         
-        // Prefer native ImageIO encoder when available (iOS 16+)
-        if let imageIOResult = encodeUsingImageIO(image: image, quality: quality, originalSize: originalSize) {
-            return imageIOResult
+        // Select backend in priority order (FFmpeg backend is disabled for still images, treated same as libavif+ImageIO)
+        switch backend {
+        case .systemImageIO:
+            print("🧪 [AVIF] Trying backend: System ImageIO")
+            if let imageIOResult = encodeUsingImageIO(image: image, quality: quality, originalSize: originalSize) {
+                print("🧪 [AVIF] Compression completed with backend: System ImageIO")
+                return imageIOResult
+            }
+            print("🧪 [AVIF] System ImageIO failed, falling back to libavif")
+            if let libavifResult = encodeUsingLibavif(image: image, quality: quality, originalSize: originalSize) {
+                print("🧪 [AVIF] Compression completed with backend: libavif (Native)")
+                return libavifResult
+            }
+        case .libavif, .ffmpeg:
+            if let libavifResult = encodeUsingLibavif(image: image, quality: quality, originalSize: originalSize) {
+                print("🧪 [AVIF] Compression completed with backend: libavif (Native)")
+                return libavifResult
+            }
+            print("🧪 [AVIF] libavif failed, falling back to System ImageIO")
+            if let imageIOResult = encodeUsingImageIO(image: image, quality: quality, originalSize: originalSize) {
+                print("🧪 [AVIF] Compression completed with backend: System ImageIO")
+                return imageIOResult
+            }
         }
         
-        // Create temporary files for FFmpeg fallback
-        let tempDir = FileManager.default.temporaryDirectory
-        let inputURL = tempDir.appendingPathComponent(UUID().uuidString + ".png")
-        let outputURL = tempDir.appendingPathComponent(UUID().uuidString + ".avif")
+        print("⚠️ [AVIF] All native AVIF backends (System ImageIO, libavif) failed for still image, returning original image data")
+        return AVIFCompressionResult(
+            data: sourceData,
+            originalSize: originalSize,
+            compressedSize: originalSize
+        )
+    }
+
+    // MARK: - libavif encoder
+
+    private static func encodeUsingLibavif(image: UIImage, quality: Double, originalSize: Int) -> AVIFCompressionResult? {
+        let normalizedQuality = max(0.1, min(1.0, quality))
         
-        defer {
-            try? FileManager.default.removeItem(at: inputURL)
-            try? FileManager.default.removeItem(at: outputURL)
-        }
-        
-        // Write source to temp file
-        do {
-            try sourceData.write(to: inputURL)
-        } catch {
-            print("❌ [AVIF] Failed to write temp input file: \(error)")
+        guard let cgImage = createCGImage(from: image.fixOrientation()) else {
+            print("⚠️ [AVIF] libavif encoder: unable to create CGImage")
             return nil
         }
         
-        progressHandler?(0.2)
-        
-        // Map quality (0.1-1.0) to CRF (63-10)
-        // Higher quality → lower CRF
-        let crf = calculateCRF(from: quality)
-        let cpuUsed = speedPreset.cpuUsedValue
-        
-        // Build FFmpeg command
-        let command = """
-        -i "\(inputURL.path)" \
-        -c:v libaom-av1 \
-        -crf \(crf) \
-        -cpu-used \(cpuUsed) \
-        -frames:v 1 \
-        -pix_fmt yuv420p \
-        "\(outputURL.path)"
-        """
-        
-        print("🎨 [AVIF] Encoding with quality=\(Int(quality * 100))% (CRF \(crf)), speed=\(speedPreset.rawValue) (cpu-used \(cpuUsed))")
-        print("🔧 [AVIF] FFmpeg command: ffmpeg \(command)")
-        
-        progressHandler?(0.3)
-        
-        // Execute FFmpeg
-        let session = FFmpegKit.execute(command)
-        
-        guard let returnCode = session?.getReturnCode(), ReturnCode.isSuccess(returnCode) else {
-            let output = session?.getOutput() ?? "Unknown error"
-            print("❌ [AVIF] FFmpeg encoding failed: \(output)")
+        guard let (rgbaData, rowBytes) = makeRGBABuffer(from: cgImage) else {
+            print("⚠️ [AVIF] libavif encoder: unable to extract RGBA buffer")
             return nil
         }
         
-        progressHandler?(0.9)
+        guard let avifImage = avifImageCreate(UInt32(cgImage.width),
+                                              UInt32(cgImage.height),
+                                              8,
+                                              AVIF_PIXEL_FORMAT_YUV444) else {
+            print("❌ [AVIF] libavif encoder: failed to create avifImage")
+            return nil
+        }
+        defer { avifImageDestroy(avifImage) }
         
-        // Read compressed output
-        guard let compressedData = try? Data(contentsOf: outputURL) else {
-            print("❌ [AVIF] Failed to read compressed AVIF file")
+        avifImage.pointee.colorPrimaries = avifColorPrimaries(UInt16(AVIF_COLOR_PRIMARIES_BT709))
+        avifImage.pointee.transferCharacteristics = avifTransferCharacteristics(UInt16(AVIF_TRANSFER_CHARACTERISTICS_SRGB))
+        avifImage.pointee.matrixCoefficients = avifMatrixCoefficients(UInt16(AVIF_MATRIX_COEFFICIENTS_BT709))
+        avifImage.pointee.yuvRange = AVIF_RANGE_FULL
+        
+        var rgbImage = avifRGBImage()
+        avifRGBImageSetDefaults(&rgbImage, avifImage)
+        rgbImage.format = AVIF_RGB_FORMAT_RGBA
+        rgbImage.depth = 8
+        rgbImage.rowBytes = UInt32(rowBytes)
+        rgbImage.alphaPremultiplied = AVIF_TRUE
+        
+        let convertedToYUV: Bool = rgbaData.withUnsafeBytes { rawBuffer in
+            guard let baseAddress = rawBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+                return false
+            }
+            rgbImage.pixels = UnsafeMutablePointer<UInt8>(mutating: baseAddress)
+            let result = avifImageRGBToYUV(avifImage, &rgbImage)
+            return result == AVIF_RESULT_OK
+        }
+        
+        guard convertedToYUV else {
+            print("❌ [AVIF] libavif encoder: RGB to YUV conversion failed")
             return nil
         }
         
-        let compressedSize = compressedData.count
-        let compressionRatio = Double(compressedSize) / Double(originalSize)
+        guard let encoder = avifEncoderCreate() else {
+            print("❌ [AVIF] libavif encoder: failed to create encoder")
+            return nil
+        }
+        defer { avifEncoderDestroy(encoder) }
         
-        print("✅ [AVIF] Compression successful")
-        print("   Original: \(originalSize) bytes")
-        print("   Compressed: \(compressedSize) bytes")
-        print("   Ratio: \(String(format: "%.1f%%", compressionRatio * 100))")
+        let quantizer = quantizerValue(for: normalizedQuality)
+        let quantizerValue = Int32(quantizer)
+        encoder.pointee.minQuantizer = quantizerValue
+        encoder.pointee.maxQuantizer = quantizerValue
+        encoder.pointee.minQuantizerAlpha = quantizerValue
+        encoder.pointee.maxQuantizerAlpha = quantizerValue
+        encoder.pointee.speed = Int32(AVIF_SPEED_DEFAULT)
+        encoder.pointee.maxThreads = Int32(max(1, ProcessInfo.processInfo.processorCount))
+        encoder.pointee.autoTiling = AVIF_TRUE
         
-        progressHandler?(1.0)
+        var output = avifRWData(data: nil, size: 0)
+        defer { avifRWDataFree(&output) }
+        
+        let writeResult = avifEncoderWrite(encoder, avifImage, &output)
+        guard writeResult == AVIF_RESULT_OK, let encodedPtr = output.data else {
+            let message = avifResultToString(writeResult).flatMap { String(cString: $0) } ?? "unknown error"
+            print("❌ [AVIF] libavif encoder: encoding failed (\(message))")
+            return nil
+        }
+        
+        let compressedData = Data(bytes: encodedPtr, count: output.size)
+        print("✅ [AVIF] libavif encoder successful - output size \(compressedData.count) bytes")
+        print("🧪 [AVIF] Compression completed with backend: libavif (Native)")
         
         return AVIFCompressionResult(
             data: compressedData,
             originalSize: originalSize,
-            compressedSize: compressedSize
+            compressedSize: compressedData.count
         )
     }
     
-    /// Re-encode animated AVIF data while preserving frames
+    /// Re-encode animated AVIF data while preserving animation using libavif.
+    /// - Note: Uses libavif's decoder/encoder directly and keeps all frames and timing metadata.
     static func compressAnimated(
         avifData: Data,
         quality: Double = 0.85,
         speedPreset: AVIFSpeedPreset = .balanced,
+        backend: AVIFEncoderBackend = .systemImageIO,
         progressHandler: ((Float) -> Void)? = nil
     ) async -> AVIFCompressionResult? {
         progressHandler?(0.05)
         let originalSize = avifData.count
-        let tempDir = FileManager.default.temporaryDirectory
-        let inputURL = tempDir.appendingPathComponent(UUID().uuidString + "_animated.avif")
-        let outputURL = tempDir.appendingPathComponent(UUID().uuidString + "_animated_out.avif")
         
-        defer {
-            try? FileManager.default.removeItem(at: inputURL)
-            try? FileManager.default.removeItem(at: outputURL)
+        // libavif 直接处理动画序列：解码全部帧，再按质量/速度重新编码为动画 AVIF
+        return avifData.withUnsafeBytes { rawBuffer -> AVIFCompressionResult? in
+            guard let baseAddress = rawBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+                print("❌ [AVIF] compressAnimated: unable to get raw pointer from Data")
+                return nil
+            }
+            
+            guard let decoder = avifDecoderCreate() else {
+                print("❌ [AVIF] Failed to create avifDecoder for animated AVIF")
+                return nil
+            }
+            defer { avifDecoderDestroy(decoder) }
+            
+            // 基本解码参数（使用 libavif 默认的大小/帧数限制，仅设置线程数）
+            decoder.pointee.maxThreads = Int32(max(1, ProcessInfo.processInfo.processorCount))
+            
+            // 读入内存数据
+            let setIOResult = avifDecoderSetIOMemory(decoder, baseAddress, avifData.count)
+            guard setIOResult == AVIF_RESULT_OK else {
+                let message = avifResultToString(setIOResult).flatMap { String(cString: $0) } ?? "unknown error"
+                print("❌ [AVIF] avifDecoderSetIOMemory failed: \(message)")
+                return nil
+            }
+            
+            let parseResult = avifDecoderParse(decoder)
+            guard parseResult == AVIF_RESULT_OK else {
+                let message = avifResultToString(parseResult).flatMap { String(cString: $0) } ?? "unknown error"
+                print("❌ [AVIF] avifDecoderParse failed: \(message)")
+                return nil
+            }
+            
+            let frameCount = max(1, decoder.pointee.imageCount)
+            if frameCount <= 1 {
+                print("⚠️ [AVIF] compressAnimated called on non-animated AVIF (frameCount=\(frameCount)), skipping")
+                return nil
+            }
+            
+            print("🎬 [AVIF] Detected animated AVIF with \(frameCount) frames, re-encoding with libavif (preserve animation)")
+            
+            // 创建 encoder（始终使用 libavif，忽略 backend，因为 System ImageIO 不支持动画）
+            guard let encoder = avifEncoderCreate() else {
+                print("❌ [AVIF] Failed to create avifEncoder for animated AVIF")
+                return nil
+            }
+            defer { avifEncoderDestroy(encoder) }
+            
+            let quantizer = quantizerValue(for: quality)
+            let quantizerValue = Int32(quantizer)
+            encoder.pointee.minQuantizer = quantizerValue
+            encoder.pointee.maxQuantizer = quantizerValue
+            encoder.pointee.minQuantizerAlpha = quantizerValue
+            encoder.pointee.maxQuantizerAlpha = quantizerValue
+            encoder.pointee.speed = Int32(speedPreset.cpuUsedValue)
+            encoder.pointee.maxThreads = Int32(max(1, ProcessInfo.processInfo.processorCount))
+            encoder.pointee.autoTiling = AVIF_TRUE
+            
+            // 继承原始 timescale
+            let timescale = decoder.pointee.timescale != 0 ? decoder.pointee.timescale : 30
+            encoder.pointee.timescale = timescale
+            
+            var frameIndex: Int = 0
+            while true {
+                let nextResult = avifDecoderNextImage(decoder)
+                if nextResult == AVIF_RESULT_OK {
+                    frameIndex += 1
+                    
+                    // 使用原文件中的帧时长，如果缺失则设置为 1 个 timescale 单位
+                    let timing = decoder.pointee.imageTiming
+                    let duration = timing.durationInTimescales > 0 ? timing.durationInTimescales : 1
+                    
+                    let addResult = avifEncoderAddImage(
+                        encoder,
+                        decoder.pointee.image,
+                        duration,
+                        avifAddImageFlags(0) // AVIF_ADD_IMAGE_FLAG_NONE
+                    )
+                    if addResult != AVIF_RESULT_OK {
+                        let message = avifResultToString(addResult).flatMap { String(cString: $0) } ?? "unknown error"
+                        print("❌ [AVIF] avifEncoderAddImage failed at frame \(frameIndex): \(message)")
+                        return nil
+                    }
+                    
+                    let progress = 0.05 + (Double(frameIndex) / Double(frameCount)) * 0.8
+                    progressHandler?(Float(progress))
+                } else if nextResult == AVIF_RESULT_NO_IMAGES_REMAINING {
+                    break
+                } else {
+                    let message = avifResultToString(nextResult).flatMap { String(cString: $0) } ?? "unknown error"
+                    print("❌ [AVIF] avifDecoderNextImage failed: \(message)")
+                    return nil
+                }
+            }
+            
+            var output = avifRWData(data: nil, size: 0)
+            defer { avifRWDataFree(&output) }
+            let finishResult = avifEncoderFinish(encoder, &output)
+            guard finishResult == AVIF_RESULT_OK, let encodedPtr = output.data else {
+                let message = avifResultToString(finishResult).flatMap { String(cString: $0) } ?? "unknown error"
+                print("❌ [AVIF] avifEncoderFinish (animated) failed: \(message)")
+                return nil
+            }
+            
+            let compressedData = Data(bytes: encodedPtr, count: output.size)
+            let compressedSize = compressedData.count
+            print("✅ [AVIF] Animated compression success (libavif) - Original: \(originalSize) bytes -> \(compressedSize) bytes, frames: \(frameCount)")
+            progressHandler?(1.0)
+            
+            return AVIFCompressionResult(
+                data: compressedData,
+                originalSize: originalSize,
+                compressedSize: compressedSize
+            )
         }
-        
-        do {
-            try avifData.write(to: inputURL)
-        } catch {
-            print("❌ [AVIF] Failed to write animated AVIF temp input file: \(error)")
-            return nil
-        }
-        
-        let crf = calculateCRF(from: quality)
-        let cpuUsed = speedPreset.cpuUsedValue
-        let args = [
-            "-y",
-            "-i", "\"\(inputURL.path)\"",
-            "-c:v", "libaom-av1",
-            "-crf", "\(crf)",
-            "-cpu-used", "\(cpuUsed)",
-            "-pix_fmt", "yuv420p",
-            "-an",
-            "\"\(outputURL.path)\""
-        ]
-        let command = args.joined(separator: " ")
-        
-        print("🎬 [AVIF] Re-encoding animated AVIF - quality=\(Int(quality * 100))% (CRF \(crf)), speed=\(speedPreset.rawValue)")
-        print("🔧 [AVIF] Animated FFmpeg command: ffmpeg \(command)")
-        progressHandler?(0.2)
-        let session = FFmpegKit.execute(command)
-        guard let returnCode = session?.getReturnCode(), ReturnCode.isSuccess(returnCode) else {
-            let output = session?.getOutput() ?? "Unknown error"
-            print("❌ [AVIF] Animated FFmpeg encoding failed: \(output)")
-            return nil
-        }
-        progressHandler?(0.9)
-        guard let compressedData = try? Data(contentsOf: outputURL) else {
-            print("❌ [AVIF] Failed to read animated AVIF output")
-            return nil
-        }
-        let compressedSize = compressedData.count
-        print("✅ [AVIF] Animated compression success - Original: \(originalSize) bytes -> \(compressedSize) bytes")
-        progressHandler?(1.0)
-        return AVIFCompressionResult(
-            data: compressedData,
-            originalSize: originalSize,
-            compressedSize: compressedSize
-        )
     }
     
     /// Calculate CRF value from quality percentage
@@ -285,6 +393,8 @@ struct AVIFCompressor {
             return nil
         }
         let compressedData = destinationData as Data
+        print("✅ [AVIF] ImageIO encoder successful - output size \(compressedData.count) bytes")
+        print("🧪 [AVIF] Compression completed with backend: System ImageIO")
         return AVIFCompressionResult(
             data: compressedData,
             originalSize: originalSize,
@@ -320,5 +430,45 @@ struct AVIFCompressor {
         let rendered = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         return rendered?.cgImage
+    }
+    private static func quantizerValue(for quality: Double) -> Int {
+        let normalized = max(0.1, min(1.0, quality))
+        let mapped = 10 + (1.0 - normalized) * 45.0
+        return Int(mapped.rounded())
+    }
+    
+    private static func makeRGBABuffer(from cgImage: CGImage) -> (Data, Int)? {
+        let width = cgImage.width
+        let height = cgImage.height
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        let totalBytes = bytesPerRow * height
+        
+        var data = Data(count: totalBytes)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+        
+        let rendered = data.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            ) else {
+                return false
+            }
+            let rect = CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height))
+            context.draw(cgImage, in: rect)
+            return true
+        }
+        
+        guard rendered else {
+            return nil
+        }
+        
+        return (data, bytesPerRow)
     }
 }

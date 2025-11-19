@@ -15,7 +15,7 @@ struct CompressionSettingsViewImage: View {
         NavigationView {
             VStack(spacing: 0) {
                 Form {
-                    // Resolution controls
+                    // MARK: - Resolution (Image category)
                     Section {
                         Picker("Target Resolution", selection: $settings.targetImageResolution) {
                             ForEach(ImageResolutionTarget.allCases) { resolution in
@@ -53,7 +53,7 @@ struct CompressionSettingsViewImage: View {
                         }
                     }
                     
-                    // Quality controls
+                    // MARK: - JPEG / HEIC / WebP / AVIF (Image category)
                     Section {
                         Toggle("Prefer HEIC", isOn: $settings.preferHEIC)
                         
@@ -89,30 +89,46 @@ struct CompressionSettingsViewImage: View {
                             Slider(value: $settings.webpQuality, in: 0.1...1.0, step: 0.05)
                         }
                         
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("AVIF Quality")
-                                Spacer()
-                                Text("\(Int(settings.avifQuality * 100))%")
+                        // AVIF (still image) settings
+                        VStack(alignment: .leading, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("AVIF Quality")
+                                    Spacer()
+                                    Text("\(Int(settings.avifQuality * 100))%")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Slider(value: $settings.avifQuality, in: 0.1...1.0, step: 0.05)
+                            }
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Picker("AVIF Speed", selection: $settings.avifSpeedPreset) {
+                                    ForEach(AVIFSpeedPreset.allCases) { preset in
+                                        Text(preset.rawValue).tag(preset)
+                                    }
+                                }
+                                Text(settings.avifSpeedPreset.description)
+                                    .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
-                            Slider(value: $settings.avifQuality, in: 0.1...1.0, step: 0.05)
-                            Text("Next-gen format with excellent compression. Requires iOS 16+ for native preview.")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            Picker("AVIF Speed", selection: $settings.avifSpeedPreset) {
-                                ForEach(AVIFSpeedPreset.allCases) { preset in
-                                    Text(preset.rawValue).tag(preset)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Picker("AVIF Encoder", selection: $settings.avifEncoderBackend) {
+                                    ForEach(AVIFEncoderBackend.allCases) { backend in
+                                        Text(backend.displayName).tag(backend)
+                                    }
                                 }
+                                Text("Choose AVIF encoding backend: System ImageIO, libavif, or FFmpeg.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
                             }
-                            Text(settings.avifSpeedPreset.description)
+
+                            Text("Next-gen AV1-based image format with excellent compression. Some backends may be slower but produce smaller files.")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
                         
+                        // Animated formats (WebP / AVIF) category
                         VStack(alignment: .leading, spacing: 6) {
                             Toggle("Preserve Animated WebP", isOn: $settings.preserveAnimatedWebP)
                             

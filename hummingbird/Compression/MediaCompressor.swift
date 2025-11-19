@@ -276,16 +276,17 @@ final class MediaCompressor {
             quality = 0.0  // PNG 不使用质量参数
         }
 
-        // 动画 AVIF：使用 FFmpeg 重新编码以保留多帧（可配置）
+        // 动画 AVIF：根据设置进行特殊处理（以前使用 FFmpeg，多帧保留；现在改为静态重编码）
         let animatedAVIF = (format == .avif && isAnimatedAVIF(data: data))
         if animatedAVIF {
             if settings.preserveAnimatedAVIF {
-                print("🎬 [AVIF] 检测到动画 AVIF，开始使用 FFmpeg 重新编码以应用质量设置")
+                print("🎬 [AVIF] 检测到动画 AVIF，开始使用静态 AVIF 管线重新编码（将动画转为单帧静态图）")
                 progressHandler?(0.25)
                 if let result = await AVIFCompressor.compressAnimated(
                     avifData: data,
                     quality: Double(settings.avifQuality),
                     speedPreset: settings.avifSpeedPreset,
+                    backend: settings.avifEncoderBackend,
                     progressHandler: { progress in
                         let mapped = 0.25 + (progress * 0.7)
                         progressHandler?(mapped)
@@ -481,6 +482,7 @@ final class MediaCompressor {
                 image: image,
                 quality: Double(quality),
                 speedPreset: settings.avifSpeedPreset,
+                backend: settings.avifEncoderBackend,
                 progressHandler: { progress in
                     // Map progress 0.3-1.0
                     let mappedProgress = 0.3 + (progress * 0.7)

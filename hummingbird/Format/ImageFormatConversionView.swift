@@ -470,6 +470,8 @@ struct ImageFormatConversionView: View {
             if let result = await AVIFCompressor.compress(
                 image: imageToEncode,
                 quality: 0.85,
+                speedPreset: .balanced,
+                backend: .systemImageIO,
                 progressHandler: { progress in
                     Task { @MainActor in
                         item.progress = 0.5 + progress * 0.2

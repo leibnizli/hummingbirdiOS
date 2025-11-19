@@ -254,6 +254,34 @@ enum AVIFSpeedPreset: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - AVIF Encoder Backend
+enum AVIFEncoderBackend: String, CaseIterable, Identifiable {
+    case systemImageIO = "System (ImageIO)"
+    case ffmpeg = "FFmpeg (libaom-av1)"
+    case libavif = "libavif (AOMedia)"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .systemImageIO: return "System (ImageIO)"
+        case .ffmpeg: return "FFmpeg (libaom-av1)"
+        case .libavif: return "libavif (Native)"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .systemImageIO:
+            return "Use iOS ImageIO AVIF encoder when available (iOS 16+)."
+        case .ffmpeg:
+            return "Use FFmpeg libaom-av1 encoder via ffmpeg-kit."
+        case .libavif:
+            return "Use AOMedia libavif C library for encoding."
+        }
+    }
+}
+
 // MARK: - Audio Channels
 enum AudioChannels: String, CaseIterable, Identifiable {
     case mono = "Mono"
@@ -315,10 +343,13 @@ class CompressionSettings: ObservableObject {
     @Published var avifSpeedPreset: AVIFSpeedPreset = .balanced {
         didSet { UserDefaults.standard.set(avifSpeedPreset.rawValue, forKey: "avifSpeedPreset") }
     }
+    @Published var avifEncoderBackend: AVIFEncoderBackend = .systemImageIO {
+        didSet { UserDefaults.standard.set(avifEncoderBackend.rawValue, forKey: "avifEncoderBackend") }
+    }
     @Published var preserveAnimatedWebP: Bool = true {
         didSet { UserDefaults.standard.set(preserveAnimatedWebP, forKey: "preserveAnimatedWebP") }
     }
-    @Published var preserveAnimatedAVIF: Bool = true {
+    @Published var preserveAnimatedAVIF: Bool = false {
         didSet { UserDefaults.standard.set(preserveAnimatedAVIF, forKey: "preserveAnimatedAVIF") }
     }
     @Published var preferHEIC: Bool = false {
@@ -441,6 +472,10 @@ class CompressionSettings: ObservableObject {
         if let presetRaw = UserDefaults.standard.string(forKey: "avifSpeedPreset"),
            let preset = AVIFSpeedPreset(rawValue: presetRaw) {
             self.avifSpeedPreset = preset
+        }
+        if let backendRaw = UserDefaults.standard.string(forKey: "avifEncoderBackend"),
+           let backend = AVIFEncoderBackend(rawValue: backendRaw) {
+            self.avifEncoderBackend = backend
         }
         if UserDefaults.standard.object(forKey: "preserveAnimatedWebP") != nil {
             self.preserveAnimatedWebP = UserDefaults.standard.bool(forKey: "preserveAnimatedWebP")
