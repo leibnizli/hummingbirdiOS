@@ -38,9 +38,27 @@ struct AVIFCompressor {
         
         progressHandler?(0.05)
         
+        // 如果外层提供了 progressHandler，这里启一个后台“心跳”，在真正编码过程中定期向前推进一点进度，
+        // 避免 UI 在长时间编码期间完全不动，看起来像卡死。
+        let progressTicker: Task<Void, Never>?
+        if let progressHandler {
+            progressTicker = Task.detached(priority: .background) {
+                var current: Float = 0.05
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 秒
+                    if Task.isCancelled { break }
+                    current = min(current + 0.05, 0.95)
+                    progressHandler(current)
+                }
+            }
+        } else {
+            progressTicker = nil
+        }
+        
         // Get PNG representation of source image (preserve alpha) for size tracking / ffmpeg fallback
         guard let sourceData = image.pngData() else {
             print("❌ [AVIF] Failed to get PNG data from source image")
+            progressTicker?.cancel()
             return nil
         }
         
@@ -52,25 +70,34 @@ struct AVIFCompressor {
             print("🧪 [AVIF] Trying backend: System ImageIO")
             if let imageIOResult = encodeUsingImageIO(image: image, quality: quality, originalSize: originalSize) {
                 print("🧪 [AVIF] Compression completed with backend: System ImageIO")
+                progressTicker?.cancel()
+                progressHandler?(1.0)
                 return imageIOResult
             }
             print("🧪 [AVIF] System ImageIO failed, falling back to libavif")
             if let libavifResult = encodeUsingLibavif(image: image, quality: quality, originalSize: originalSize) {
                 print("🧪 [AVIF] Compression completed with backend: libavif (Native)")
+                progressTicker?.cancel()
+                progressHandler?(1.0)
                 return libavifResult
             }
         case .libavif:
             if let libavifResult = encodeUsingLibavif(image: image, quality: quality, originalSize: originalSize) {
                 print("🧪 [AVIF] Compression completed with backend: libavif (Native)")
+                progressTicker?.cancel()
+                progressHandler?(1.0)
                 return libavifResult
             }
             print("🧪 [AVIF] libavif failed, falling back to System ImageIO")
             if let imageIOResult = encodeUsingImageIO(image: image, quality: quality, originalSize: originalSize) {
                 print("🧪 [AVIF] Compression completed with backend: System ImageIO")
+                progressTicker?.cancel()
+                progressHandler?(1.0)
                 return imageIOResult
             }
         }
         
+        progressTicker?.cancel()
         print("⚠️ [AVIF] All native AVIF backends (System ImageIO, libavif) failed for still image, returning original image data")
         return AVIFCompressionResult(
             data: sourceData,
@@ -178,6 +205,22 @@ struct AVIFCompressor {
         progressHandler?(0.05)
         let originalSize = avifData.count
         
+        // 和静态 AVIF 一样，加一个后台“心跳”推进进度，避免长时间编码阶段 UI 完全不动
+        let progressTicker: Task<Void, Never>?
+        if let progressHandler {
+            progressTicker = Task.detached(priority: .background) {
+                var current: Float = 0.05
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 秒
+                    if Task.isCancelled { break }
+                    current = min(current + 0.05, 0.95)
+                    progressHandler(current)
+                }
+            }
+        } else {
+            progressTicker = nil
+        }
+        
         // libavif 直接处理动画序列：解码全部帧，再按质量/速度重新编码为动画 AVIF
         return avifData.withUnsafeBytes { rawBuffer -> AVIFCompressionResult? in
             guard let baseAddress = rawBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
@@ -283,6 +326,7 @@ struct AVIFCompressor {
             let compressedData = Data(bytes: encodedPtr, count: output.size)
             let compressedSize = compressedData.count
             print("✅ [AVIF] Animated compression success (libavif) - Original: \(originalSize) bytes -> \(compressedSize) bytes, frames: \(frameCount)")
+            progressTicker?.cancel()
             progressHandler?(1.0)
             
             return AVIFCompressionResult(

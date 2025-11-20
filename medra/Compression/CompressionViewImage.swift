@@ -582,6 +582,23 @@ struct CompressionViewImage: View {
             return
         }
         
+        // Animated AVIF + preserve setting: skip compression and keep original data
+        if item.isAnimatedAVIF && settings.preserveAnimatedAVIF {
+            print("🎬 [CompressionView] Animated AVIF with preserve enabled — keeping original data")
+            let originalResolution = item.originalResolution ?? UIImage(data: originalData)?.size
+            await MainActor.run {
+                item.status = .completed
+                item.progress = 1.0
+                item.compressedData = originalData
+                item.compressedSize = originalData.count
+                item.compressedResolution = originalResolution
+                item.outputImageFormat = .avif
+                item.preservedAnimation = true
+                item.infoMessage = "Animated AVIF preserved — original file kept (compression skipped)"
+            }
+            return
+        }
+        
         // 显示压缩开始状态
         await MainActor.run {
             item.status = .compressing
@@ -663,6 +680,7 @@ struct CompressionViewImage: View {
                     // 如果是动画 WebP，保留原始动画
                     if item.isAnimatedWebP {
                         item.preservedAnimation = true
+                        item.infoMessage = "Animated WebP preserved"
                     }
                     if item.isAnimatedAVIF {
                         item.preservedAnimation = true
@@ -681,11 +699,19 @@ struct CompressionViewImage: View {
                             item.preservedAnimation = compressedFrameCount > 1
                             item.webpFrameCount = Int(compressedFrameCount)
                             print("📊 [CompressionView] 压缩后 WebP - 帧数: \(compressedFrameCount), 保留动画: \(item.preservedAnimation)")
+                            
+                            // 设置 WebP 动画相关提示
+                            if item.preservedAnimation {
+                                item.infoMessage = "Animated WebP re-encoded with quality settings"
+                            } else {
+                                item.infoMessage = "Animation removed during WebP re-encode"
+                            }
                         } else {
                             // 无法解析压缩结果时，根据设置回退
                             item.preservedAnimation = settings.preserveAnimatedWebP
                             if !settings.preserveAnimatedWebP {
                                 item.webpFrameCount = 1
+                                item.infoMessage = "Animation removed during WebP re-encode"
                             }
                         }
                     }
@@ -723,7 +749,7 @@ struct CompressionViewImage: View {
     }
     
     private func avifAnimationMessage(preserve: Bool) -> String {
-        preserve ? "Animated AVIF detected — will preserve frames" : "Animated AVIF detected — will convert to static"
+        preserve ? "Animated AVIF detected — original file will be kept (no compression)" : "Animated AVIF detected — will convert to static"
     }
     
     private func webpAnimationMessage(preserve: Bool) -> String {

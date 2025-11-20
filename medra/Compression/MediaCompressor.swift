@@ -280,26 +280,9 @@ final class MediaCompressor {
         let animatedAVIF = (format == .avif && isAnimatedAVIF(data: data))
         if animatedAVIF {
             if settings.preserveAnimatedAVIF {
-                print("🎬 [AVIF] 检测到动画 AVIF，开始使用静态 AVIF 管线重新编码（将动画转为单帧静态图）")
-                progressHandler?(0.25)
-                if let result = await AVIFCompressor.compressAnimated(
-                    avifData: data,
-                    quality: Double(settings.avifQuality),
-                    speedPreset: settings.avifSpeedPreset,
-                    backend: settings.avifEncoderBackend,
-                    progressHandler: { progress in
-                        let mapped = 0.25 + (progress * 0.7)
-                        progressHandler?(mapped)
-                    }
-                ) {
-                    progressHandler?(1.0)
-                    print("✅ [AVIF] 动画重新编码成功 - 原始: \(result.originalSize) bytes, 压缩后: \(result.compressedSize) bytes")
-                    return result.data
-                } else {
-                    progressHandler?(1.0)
-                    print("⚠️ [AVIF] 动画重新编码失败，保留原始数据")
-                    return data
-                }
+                print("🎬 [AVIF] Animated AVIF detected with preserve enabled — returning original data without recompression")
+                progressHandler?(1.0)
+                return data
             } else {
                 print("⚠️ [AVIF] 动画已检测到，但设置为不保留动画，将转换为静态帧")
             }

@@ -346,6 +346,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = medra/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Medra;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app includes third-party components that may reference camera APIs, but the camera is not actually used.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Access the photo library to save the compressed images and videos.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access the photo library to select images and videos to compress.";
@@ -390,6 +391,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = medra/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Medra;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app includes third-party components that may reference camera APIs, but the camera is not actually used.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Access the photo library to save the compressed images and videos.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access the photo library to select images and videos to compress.";

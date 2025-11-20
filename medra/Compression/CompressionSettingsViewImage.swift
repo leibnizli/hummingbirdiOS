@@ -170,18 +170,18 @@ struct CompressionSettingsViewImage: View {
                             Toggle("Preserve Animated AVIF", isOn: $settings.preserveAnimatedAVIF)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("When enabled, AVIF image sequences keep their motion by re-encoding all frames. Turning it off flattens the sequence into a single still frame.")
+                                Text("When enabled, animated AVIF files skip compression entirely and the original file is kept to preserve motion. Turn it off to flatten the sequence into a single still frame (smaller size but loses animation).")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                 
                                 if settings.preserveAnimatedAVIF {
-                                    Text("⚠️ Warning: Re-encoding animated AVIF can be extremely slow, especially with long animations or slower backends.")
+                                    Text("⚠️ Warning: When animation is preserved, the file will not be compressed and the original image will be used as-is.")
                                         .font(.caption2)
                                         .foregroundStyle(.orange)
                                         .bold()
                                 }
                                 
-                                Text("Re-encoding animations may take longer and some files may not shrink much if they are already optimized.")
+                                Text("Disable this option if you need to shrink file size by converting the animation into a static frame.")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
                             }
