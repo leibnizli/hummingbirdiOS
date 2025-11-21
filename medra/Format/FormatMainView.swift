@@ -64,6 +64,26 @@ struct FormatMainView: View {
                     }
                     .padding(.vertical, 8)
                 }
+                
+                Section(header: Text("Video to Animation")) {
+                    NavigationLink(destination: VideoToAnimationView(format: .webp)) {
+                        HStack(spacing: 16) {
+                            Image(systemName: "film.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.orange)
+                                .frame(width: 40)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Video to Animation")
+                                    .font(.headline)
+                                Text("Convert video to animated WebP, AVIF, or GIF")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
             }
             .navigationTitle("Format Conversion")
             .navigationBarTitleDisplayMode(.inline)

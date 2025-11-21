@@ -174,6 +174,10 @@ struct FormatItemRow: View {
                             }
                         }
                         
+                        Spacer()
+                        
+                        statusBadge
+                        
                         // 转换规则说明（独立一行）
                         if (item.isAnimatedWebP || item.isAnimatedAVIF), let target = targetFormat {
                             let sourceFormat = item.originalImageFormat
@@ -399,8 +403,12 @@ struct FormatItemRow: View {
                             }
                         }
                         
-                        // Status information
-                        statusView
+                        // Progress bar
+                        if item.status == .processing || item.status == .compressing {
+                            ProgressView(value: Double(item.progress))
+                                .tint(.blue)
+                                .padding(.top, 4)
+                        }
                     }
                 }
                 
@@ -458,57 +466,55 @@ struct FormatItemRow: View {
         }
     }
     @ViewBuilder
-    private var statusView: some View {
+    private var statusBadge: some View {
         switch item.status {
         case .loading:
-            HStack(spacing: 6) {
+            HStack(spacing: 3) {
                 ProgressView()
                     .scaleEffect(0.7)
                 Text("Loading")
-                    .font(.caption)
-                    .foregroundStyle(.blue)
             }
+            .font(.caption)
+            .foregroundStyle(.blue)
             
         case .pending:
-            Text("Pending conversion")
+            Text("Pending")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             
         case .processing:
-            HStack(spacing: 6) {
+            HStack(spacing: 3) {
                 ProgressView()
                     .scaleEffect(0.7)
-                Text("Converting \(Int(item.progress * 100))%")
-                    .font(.caption)
-                    .foregroundStyle(.blue)
-            }
-            
-        case .completed:
-            HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Conversion complete")
-                    .foregroundStyle(.green)
+                Text("Converting")
             }
             .font(.caption)
-            
-        case .failed:
-            HStack(spacing: 4) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
-                Text(item.errorMessage ?? "Conversion failed")
-                    .foregroundStyle(.red)
-            }
-            .font(.caption)
+            .foregroundStyle(.blue)
             
         case .compressing:
-            HStack(spacing: 6) {
+            HStack(spacing: 3) {
                 ProgressView()
                     .scaleEffect(0.7)
-                Text("Processing \(Int(item.progress * 100))%")
-                    .font(.caption)
-                    .foregroundStyle(.blue)
+                Text("Compressing")
             }
+            .font(.caption)
+            .foregroundStyle(.blue)
+            
+        case .completed:
+            HStack(spacing: 3) {
+                Image(systemName: "checkmark.circle.fill")
+                Text("Completed")
+            }
+            .font(.caption)
+            .foregroundStyle(.green)
+            
+        case .failed:
+            HStack(spacing: 3) {
+                Image(systemName: "exclamationmark.circle.fill")
+                Text("Failed")
+            }
+            .font(.caption)
+            .foregroundStyle(.red)
         }
     }
     

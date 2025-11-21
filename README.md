@@ -1,4 +1,4 @@
-# Hummingbird - Media Compression Tool
+# Medra - Media Compression Tool
 
 A clean and efficient iOS app for compressing images, videos, and audio files. Extensive customization options to meet your personalized needs. Runs locally without network, protecting your privacy and security.
 
