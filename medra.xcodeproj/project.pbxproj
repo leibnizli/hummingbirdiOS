@@ -340,13 +340,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = medra/medra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = XTWM4R2294;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = medra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Medra;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app includes third-party components that may reference camera APIs, but the camera is not actually used.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Access the photo library to save the compressed images and videos.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access the photo library to select images and videos to compress.";
@@ -363,7 +364,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/medra/Libraries",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.arayofsunshine.hummingbird.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -385,13 +386,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = medra/medra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = XTWM4R2294;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = medra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Medra;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app includes third-party components that may reference camera APIs, but the camera is not actually used.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Access the photo library to save the compressed images and videos.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access the photo library to select images and videos to compress.";
@@ -408,7 +410,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/medra/Libraries",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.arayofsunshine.hummingbird.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

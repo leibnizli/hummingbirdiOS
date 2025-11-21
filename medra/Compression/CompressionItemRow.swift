@@ -94,9 +94,6 @@ struct CompressionItemRow: View {
                     // 信息区域
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Image(systemName: item.isAudio ? "music.note" : (item.isVideo ? "video.circle.fill" : "photo.circle.fill"))
-                                .foregroundStyle(item.isAudio ? .purple : (item.isVideo ? .blue : .green))
-                            
                             // 文件格式
                             if item.status == .completed {
                                 // 根据文件类型获取原始格式
