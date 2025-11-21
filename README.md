@@ -8,7 +8,7 @@ A clean and efficient iOS app for compressing images, videos, and audio files. E
 
 - Support batch selection of images, videos, and audio (up to 20 files)
 - Support multiple media formats
-  - Images: JPEG/PNG/HEIC/WebP
+  - Images: JPEG/PNG/HEIC/WebP/AVIF
   - Videos: MOV/MP4/M4V
   - Audio: MP3/M4A/AAC/WAV/FLAC/OGG
 - Real-time processing progress display
@@ -20,7 +20,7 @@ A clean and efficient iOS app for compressing images, videos, and audio files. E
 
 #### Image Compression
 
-- Support JPEG/PNG/HEIC/WebP formats
+- Support JPEG/PNG/HEIC/WebP/AVIF formats
 - Use MozJPEG for high-quality JPEG compression
 - PNG compression using pngquant + optional Zopfli (lossy quantization + lossless deflate)
 - **Animated WebP Support**:
@@ -29,6 +29,9 @@ A clean and efficient iOS app for compressing images, videos, and audio files. E
   - Frame-by-frame compression, maintaining timeline information
   - Smart fallback: preserve original file if compressed lossless format is larger
   - Visual indicator: clearly display animation status and frame count
+- **Animated AVIF Support**:
+  - Auto-detect animated AVIF
+  - Option to preserve original animation (pass-through) or convert to static image
 - Adjustable compression quality (10%-100%)
 - Support resolution adjustment (Original/4K/2K/1080p/720p)
 - Auto orientation detection (landscape/portrait)
@@ -93,9 +96,10 @@ A clean and efficient iOS app for compressing images, videos, and audio files. E
 
 ### 3. Format Conversion
 
-- Batch convert image formats: JPEG ↔ PNG
+- Batch convert image formats: JPEG ↔ PNG ↔ WebP ↔ HEIC ↔ AVIF
 - Batch convert video formats: MP4 ↔ MOV ↔ M4V
-- Lossless conversion, maintaining original quality
+- Batch convert audio formats: MP3 ↔ M4A ↔ AAC ↔ FLAC ↔ WAV ↔ OGG
+- Lossless conversion (where possible), maintaining original quality
 - No compression, only format modification
 
 ## 📋 List Display

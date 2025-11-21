@@ -433,7 +433,7 @@ final class MediaCompressor {
         
         // 大文件时间预估
         if frameCount > 100 {
-            let estimatedSeconds = frameCount / 10  // 粗略估计：每秒处理约10帧
+            let estimatedSeconds = frameCount / 2  // 粗略估计：每秒处理约2帧
             print("⏳ [WebP] 开始编码 \(frames.count) 帧，预计需要约 \(estimatedSeconds) 秒，请稍候...")
         } else {
             print("⏳ [WebP] 开始编码 \(frames.count) 帧，请稍候...")
