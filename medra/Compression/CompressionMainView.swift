@@ -24,6 +24,9 @@ struct CompressionMainView: View {
                             Text("HEIC, JPEG, PNG, WebP, AVIF")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            Text("WebP animation supported • AVIF animation preserved")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
                         }
                     }
                     .padding(.vertical, 8)
