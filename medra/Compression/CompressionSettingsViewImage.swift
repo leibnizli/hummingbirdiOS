@@ -349,7 +349,7 @@ struct CompressionSettingsViewImage: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("PNG Compression Library")
                                     .font(.headline)
-                                Text("pngquant (GPLv3) powered by libimagequant. Our integration code is published at https://github.com/leibnizli/hummingbirdiOS to satisfy GPL requirements.")
+                                Text("pngquant (GPLv3) powered by libimagequant. Our integration code is published at https://github.com/leibnizli/medra to satisfy GPL requirements.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

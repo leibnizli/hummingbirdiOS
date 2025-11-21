@@ -14,6 +14,7 @@ struct FormatItemRow: View {
     @StateObject private var audioPlayer = AudioPlayerManager.shared
     @State private var showingToast = false
     @State private var toastMessage = ""
+    var targetFormat: ImageFormat? = nil  // 目标格式，用于显示动画警告
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -162,7 +163,46 @@ struct FormatItemRow: View {
                                     Text(originalFormatText)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    
+                                    // 显示动画标志
+                                    if item.isAnimatedWebP || item.isAnimatedAVIF {
+                                        Image(systemName: "film.fill")
+                                            .font(.caption2)
+                                            .foregroundStyle(.orange)
+                                    }
                                 }
+                            }
+                        }
+                        
+                        // 转换规则说明（独立一行）
+                        if (item.isAnimatedWebP || item.isAnimatedAVIF), let target = targetFormat {
+                            let sourceFormat = item.originalImageFormat
+                            
+                            // 检查是否为同格式转换
+                            let isSameFormat = (item.isAnimatedWebP && sourceFormat == .webp && target == .webp) ||
+                                              (item.isAnimatedAVIF && sourceFormat == .avif && target == .avif)
+                            
+                            // 根据转换状态调整文案
+                            let isCompleted = item.status == .completed
+                            
+                            if isSameFormat {
+                                // 同格式：返回原文件
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.caption2)
+                                    Text(isCompleted ? "Original file was returned" : "Original file will be returned")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.green)
+                            } else {
+                                // 跨格式：只转换第一帧
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption2)
+                                    Text(isCompleted ? "Only first frame was converted" : "Only first frame will be converted")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.orange)
                             }
                         }
                         
