@@ -48,12 +48,32 @@ struct ResolutionItemRow: View {
                                 .padding(.vertical, 2)
                                 .background(Color.secondary.opacity(0.15))
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
+                            
+                            // 显示动画标志
+                            if item.isAnimatedWebP || item.isAnimatedAVIF {
+                                Image(systemName: "film.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
                         }
                         
                         Spacer()
                         
                         // Status badge
                         statusBadge
+                    }
+                    
+                    // 动画转换规则说明（独立一行）
+                    if item.isAnimatedWebP || item.isAnimatedAVIF {
+                        let isCompleted = item.status == .completed
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption2)
+                            Text(isCompleted ? "Only first frame was kept" : "Only first frame will be kept")
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(.orange)
                     }
                     
                     // Resolution information

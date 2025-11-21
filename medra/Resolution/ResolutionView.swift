@@ -192,31 +192,6 @@ struct ResolutionView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     
-                    // 动画丢失警告（仅在有动画 WebP/AVIF 时显示）
-                    if hasAnimatedWebPOrAVIF {
-                        Divider()
-                            .padding(.leading, 16)
-                        
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.orange)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Animation Will Be Lost")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.primary)
-                                Text("Resolution adjustment does not preserve animations for WebP and AVIF formats. Only the first frame will be kept.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color.orange.opacity(0.1))
-                    }
-                    
                     Rectangle()
                         .fill(Color(uiColor: .separator).opacity(0.5))
                         .frame(height: 0.5)
