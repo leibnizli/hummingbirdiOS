@@ -14,10 +14,10 @@ struct ContentView: View {
                 .tabItem {
                     Label("Compress", systemImage: "bolt.fill")
                 }
-            ResolutionView()
-                .tabItem {
-                    Label("Resolution", systemImage: "arrow.up.left.and.arrow.down.right")
-                }
+//            ResolutionView()
+//                .tabItem {
+//                    Label("Resolution", systemImage: "arrow.up.left.and.arrow.down.right")
+//                }
             FormatMainView()
                 .tabItem {
                     Label("Format", systemImage: "arrow.triangle.2.circlepath")

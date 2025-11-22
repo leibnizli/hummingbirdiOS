@@ -197,6 +197,7 @@ struct VideoToAnimationView: View {
         await MainActor.run {
             item.status = .processing
             item.progress = 0
+            item.processingStartTime = Date()  // Track start time for estimation
         }
         
         guard let sourceURL = item.sourceVideoURL else {

@@ -393,6 +393,13 @@ struct FormatItemRow: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     
+                                    // 显示总帧数
+                                    if let totalFrames = item.totalFrames {
+                                        Text("Total Frames: \(item.formatTotalFrames())")
+                                            .font(.caption)
+                                            .foregroundStyle(.blue)
+                                    }
+                                    
                                     // 显示编码
                                     if let codec = item.videoCodec {
                                         Text("Codec: \(codec)")
@@ -408,6 +415,14 @@ struct FormatItemRow: View {
                             ProgressView(value: Double(item.progress))
                                 .tint(.blue)
                                 .padding(.top, 4)
+                            
+                            // Show estimated time remaining for videos during processing
+                            if item.isVideo, let estimatedTime = item.estimatedTimeRemaining() {
+                                Text(estimatedTime)
+                                    .font(.caption2)
+                                    .foregroundStyle(.blue)
+                                    .padding(.top, 2)
+                            }
                         }
                     }
                 }

@@ -37,6 +37,9 @@ class MediaItem: Identifiable, ObservableObject {
     @Published var thumbnailImage: UIImage?
     @Published var fileExtension: String = ""
     
+    // Processing time tracking (for estimated time remaining)
+    @Published var processingStartTime: Date?
+    
     // Resolution information
     @Published var originalResolution: CGSize?
     @Published var compressedResolution: CGSize?
@@ -168,6 +171,43 @@ class MediaItem: Identifiable, ObservableObject {
         }
         // 否则显示两位小数
         return String(format: "%.2f fps", frameRate)
+    }
+    
+    // Calculate total frames (for videos)
+    var totalFrames: Int? {
+        guard let duration = duration, let frameRate = frameRate, duration > 0, frameRate > 0 else {
+            return nil
+        }
+        return Int(duration * frameRate)
+    }
+    
+    // Format total frames
+    func formatTotalFrames() -> String {
+        guard let frames = totalFrames else { return "Unknown" }
+        return "\(frames) frames"
+    }
+    
+    // Calculate estimated time remaining (based on current progress)
+    func estimatedTimeRemaining() -> String? {
+        guard let startTime = processingStartTime, progress > 0, progress < 1.0 else {
+            return nil
+        }
+        
+        let elapsedTime = Date().timeIntervalSince(startTime)
+        let estimatedTotalTime = elapsedTime / Double(progress)
+        let remainingTime = estimatedTotalTime - elapsedTime
+        
+        // Don't show if less than 1 second remaining
+        guard remainingTime > 1 else { return nil }
+        
+        let minutes = Int(remainingTime) / 60
+        let seconds = Int(remainingTime) % 60
+        
+        if minutes > 0 {
+            return "~\(minutes)m \(seconds)s remaining"
+        } else {
+            return "~\(seconds)s remaining"
+        }
     }
     
     // Format audio bitrate

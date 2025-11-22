@@ -27,6 +27,7 @@ class FFmpegAnimationConverter {
         outputURL: URL,
         format: AnimationFormat,
         progressHandler: @escaping (Float) -> Void,
+        frameCountHandler: ((Int) -> Void)? = nil,
         completion: @escaping (Result<URL, Error>) -> Void
     ) {
         let inputPath = inputURL.path
@@ -73,19 +74,13 @@ class FFmpegAnimationConverter {
                 let frameCountCommand = "-v error -select_streams v:0 -count_frames -show_entries stream=nb_read_frames -of default=nokey=1:noprint_wrappers=1 \"\(inputPath)\""
                 let probeSession = FFprobeKit.execute(frameCountCommand)
                 
-                var frameCountMessage = ""
                 if let output = probeSession?.getOutput()?.trimmingCharacters(in: .whitespacesAndNewlines),
                    let frameCount = Int(output), frameCount > 0 {
-                    frameCountMessage = "\(frameCount) frames detected, please be patient..."
                     print("🎬 [FFmpeg Animation] Detected \(frameCount) frames")
-                } else {
-                    frameCountMessage = "Processing animation, please be patient..."
-                }
-                
-                // Update UI with frame count info
-                DispatchQueue.main.async {
-                    print("📊 [FFmpeg Animation] \(frameCountMessage)")
-                    progressHandler(0.01)
+                    // Notify UI about frame count
+                    DispatchQueue.main.async {
+                        frameCountHandler?(frameCount)
+                    }
                 }
                 
                 // Command to convert directly to AVIF
