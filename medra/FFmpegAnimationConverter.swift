@@ -58,12 +58,13 @@ class FFmpegAnimationConverter {
         
         switch format {
         case .webp:
-            // ffmpeg -i input.mp4 -c:v libwebp -loop 0 -an output.webp
+            // ffmpeg -i input.mp4 -r 15 -c:v libwebp -loop 0 -an output.webp
+            // -r 15: limit frame rate to 15 fps
             // -an: disable audio
             // -loop 0: infinite loop
             // -preset default: default preset
             // -q:v 75: quality 75 (optional, can be adjusted)
-            command = "-i \"\(inputPath)\" -c:v libwebp -loop 0 -an -preset default -q:v 75 \"\(outputPath)\""
+            command = "-i \"\(inputPath)\" -r 15 -c:v libwebp -loop 0 -an -preset default -q:v 75 \"\(outputPath)\""
             
         case .avif:
             // Direct AVIF conversion using FFmpeg with libaom-av1
@@ -84,11 +85,12 @@ class FFmpegAnimationConverter {
                 }
                 
                 // Command to convert directly to AVIF
+                // -r 15: limit frame rate to 15 fps
                 // -c:v libaom-av1: Use AV1 codec
                 // -cpu-used 8: Fastest encoding speed (0-8, 8 is fastest)
                 // -crf 20: High quality (lower is better, typical range 15-35)
                 // -f avif: Force AVIF format
-                let command = "-i \"\(inputPath)\" -c:v libaom-av1 -cpu-used 8 -crf 20 -f avif \"\(outputPath)\""
+                let command = "-i \"\(inputPath)\" -r 15 -c:v libaom-av1 -cpu-used 8 -crf 20 -f avif \"\(outputPath)\""
                 
                 print("🎬 [FFmpeg Animation] Converting to AVIF")
                 print("📝 [FFmpeg Animation] Command: ffmpeg \(command)")
@@ -141,7 +143,7 @@ class FFmpegAnimationConverter {
             
         case .gif:
             // ffmpeg -i input.mp4 -vf "fps=15,scale=320:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 output.gif
-            // High quality GIF generation
+            // High quality GIF generation with 15 fps frame rate
             // For simplicity, we start with a basic command, but palettegen is better.
             // Let's use a decent quality command.
             command = "-i \"\(inputPath)\" -vf \"fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -loop 0 \"\(outputPath)\""
