@@ -29,6 +29,23 @@ struct TransformMainView: View {
                         }
                         .padding(.vertical, 8)
                     }
+                    NavigationLink(destination: VideoToAudioView()) {
+                        HStack(spacing: 16) {
+                            Image(systemName: "waveform.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.teal)
+                                .frame(width: 40)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Video to Audio")
+                                    .font(.headline)
+                                Text("Extract audio from video")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
                 }
                 Section(header: Text("Format Conversion")) {
                     NavigationLink(destination: ImageFormatConversionView()) {
@@ -78,24 +95,6 @@ struct TransformMainView: View {
                                 Text("Audio Format Conversion")
                                     .font(.headline)
                                 Text("MP3, M4A, FLAC, WAV")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    
-                    NavigationLink(destination: VideoToAudioView()) {
-                        HStack(spacing: 16) {
-                            Image(systemName: "waveform.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.teal)
-                                .frame(width: 40)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Video to Audio")
-                                    .font(.headline)
-                                Text("Extract audio from video")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

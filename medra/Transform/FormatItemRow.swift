@@ -15,6 +15,7 @@ struct FormatItemRow: View {
     @State private var showingToast = false
     @State private var toastMessage = ""
     var targetFormat: ImageFormat? = nil  // 目标格式，用于显示动画警告
+    var showPhotosSaveButton: Bool = true  // 是否显示保存到相册按钮
     
     var body: some View {
         // 根据文件类型获取输出格式
@@ -431,7 +432,7 @@ struct FormatItemRow: View {
                 if item.status == .completed {
                     VStack(spacing: 8) {
                         HStack(spacing: 8) {
-                            if (outputFormatText != "AVIF" && outputFormatText != "WEBP" && !item.isAudio) {
+                            if showPhotosSaveButton && (outputFormatText != "AVIF" && outputFormatText != "WEBP" && !item.isAudio) {
                                 Button(action: {
                                     Task { await saveToPhotos() }
                                 }) {

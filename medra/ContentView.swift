@@ -16,7 +16,7 @@ struct ContentView: View {
                 }
             TransformMainView()
                 .tabItem {
-                    Label("Transform", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Transform", systemImage: "wand.and.stars")
                 }
         }
         .environment(\.horizontalSizeClass, .compact)

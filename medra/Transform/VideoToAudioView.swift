@@ -119,7 +119,7 @@ struct VideoToAudioView: View {
             } else {
                 List {
                     ForEach(mediaItems) { item in
-                        FormatItemRow(item: item)
+                        FormatItemRow(item: item, showPhotosSaveButton: false)
                             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                             .listRowSeparator(.visible)
                     }
