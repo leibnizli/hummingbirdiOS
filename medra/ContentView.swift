@@ -12,7 +12,7 @@ struct ContentView: View {
         TabView {
             CompressionMainView()
                 .tabItem {
-                    Label("Compress", systemImage: "bolt.fill")
+                    Label("Compress", systemImage: "arrow.down.forward.and.arrow.up.backward")
                 }
             TransformMainView()
                 .tabItem {

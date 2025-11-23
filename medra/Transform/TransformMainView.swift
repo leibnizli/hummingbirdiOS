@@ -108,7 +108,7 @@ struct TransformMainView: View {
                     }
                 }
             }
-            .navigationTitle("Media Conversion")
+            .navigationTitle("Media Transform")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
