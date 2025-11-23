@@ -185,6 +185,14 @@ final class MediaCompressor {
                         print("✅ [WebP] 设置：保留动画，开始压缩")
                         progressHandler?(0.2)
                         
+                        // Use FFmpeg for faster compression
+                        if let compressedData = await FFmpegWebPCompressor.compress(data: data, settings: settings, progressHandler: { p in
+                            progressHandler?(0.2 + (p * 0.8))
+                        }) {
+                            return compressedData
+                        }
+                        
+                        print("⚠️ [WebP] FFmpeg compression failed, falling back to SDWebImage")
                         let quality = CGFloat(settings.webpQuality)
                         return await encodeAnimatedWebP(
                             animatedImage: animatedImage,
