@@ -588,10 +588,13 @@ class CompressionSettings: ObservableObject {
         }
         
         // Load audio settings
+        // audioFormat is always .original, do not load from UserDefaults
+        /*
         if let formatRaw = UserDefaults.standard.string(forKey: "audioFormat"),
            let format = AudioFormat(rawValue: formatRaw) {
             self.audioFormat = format
         }
+        */
         if let bitrateRaw = UserDefaults.standard.string(forKey: "audioBitrate"),
            let bitrate = AudioBitrate(rawValue: bitrateRaw) {
             self.audioBitrate = bitrate

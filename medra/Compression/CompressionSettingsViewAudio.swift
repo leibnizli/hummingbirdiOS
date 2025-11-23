@@ -18,15 +18,17 @@ struct CompressionSettingsViewAudio: View {
                 Form {
                     // Audio Settings
                     Section {
-                        Picker("Output Format", selection: $settings.audioFormat) {
-                            ForEach(AudioFormat.allCases) { format in
-                                Text(format.rawValue).tag(format)
-                            }
+                        // Format selection removed, always use original format
+                        HStack {
+                            Text("Output Format")
+                            Spacer()
+                            Text("Original")
+                                .foregroundStyle(.secondary)
                         }
                     } header: {
                         Text("Format Settings")
                     } footer: {
-                        Text("Choose the output audio format. Original keeps the same format as input file. MP3 and M4A are widely compatible. FLAC is lossless. WAV is uncompressed.")
+                        Text("The output format will always match the original file format (e.g. MP3 stays MP3).")
                     }
                     
                     Section {

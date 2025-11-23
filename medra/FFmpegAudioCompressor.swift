@@ -121,7 +121,8 @@ class FFmpegAudioCompressor {
                 var errorDescription = "Audio compression failed"
                 if errorMessage.contains("Unknown encoder") || errorMessage.contains("Encoder not found") {
                     errorDescription = "Encoder '\(audioFormat.encoderName)' not available. Please try AAC, M4A, FLAC, or WAV format."
-                } else if errorMessage.contains("libmp3lame") {
+                } else if errorMessage.contains("libmp3lame") && (errorMessage.contains("not found") || errorMessage.contains("fail")) {
+                    // Only report MP3 encoder error if it specifically mentions failure or not found
                     errorDescription = "MP3 encoder not available. Please try AAC format instead."
                 }
                 
@@ -212,7 +213,8 @@ class FFmpegAudioCompressor {
         command += " -ac \(channels)"
         
         // Output file
-        command += " \"\(outputPath)\""
+        // Add -vn to disable video recording (avoids issues with embedded cover art)
+        command += " -vn \"\(outputPath)\""
         
         return command
     }

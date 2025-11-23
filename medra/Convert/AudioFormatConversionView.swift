@@ -305,7 +305,7 @@ struct AudioFormatConversionView: View {
             command += " -c:a pcm_s16le"
         }
         
-        command += " \"\(outputURL.path)\""
+        command += " -vn \"\(outputURL.path)\""
         
         print("[convertAudio] FFmpeg 命令: ffmpeg \(command)")
         

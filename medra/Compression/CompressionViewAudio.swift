@@ -236,86 +236,124 @@ struct CompressionViewAudio: View {
     }
     private func loadAudioMetadata(for mediaItem: MediaItem, url: URL) async {
         let asset = AVURLAsset(url: url)
+        var avFoundationSuccess = false
         
-        // 加载音频时长
+        // Try AVFoundation first
         do {
             let duration = try await asset.load(.duration)
             let durationSeconds = CMTimeGetSeconds(duration)
             
-            await MainActor.run {
-                mediaItem.duration = durationSeconds
-            }
-            
-            // 加载音频轨道信息
-            let tracks = try await asset.loadTracks(withMediaType: .audio)
-            if let audioTrack = tracks.first {
-                // 获取音频格式描述
-                let formatDescriptions = audioTrack.formatDescriptions as! [CMFormatDescription]
-                if let formatDescription = formatDescriptions.first {
-                    let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)
-                    
-                    if let asbd = audioStreamBasicDescription {
-                        let sampleRate = Int(asbd.pointee.mSampleRate)
-                        let channels = Int(asbd.pointee.mChannelsPerFrame)
+            // Only consider it a success if we got a valid duration
+            if durationSeconds > 0 {
+                await MainActor.run {
+                    mediaItem.duration = durationSeconds
+                }
+                
+                // Load audio tracks info
+                let tracks = try await asset.loadTracks(withMediaType: .audio)
+                if let audioTrack = tracks.first {
+                    // Get format description
+                    let formatDescriptions = audioTrack.formatDescriptions as! [CMFormatDescription]
+                    if let formatDescription = formatDescriptions.first {
+                        let audioStreamBasicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)
                         
+                        if let asbd = audioStreamBasicDescription {
+                            let sampleRate = Int(asbd.pointee.mSampleRate)
+                            let channels = Int(asbd.pointee.mChannelsPerFrame)
+                            
+                            await MainActor.run {
+                                mediaItem.audioSampleRate = sampleRate
+                                mediaItem.audioChannels = channels
+                            }
+                        }
+                    }
+                    
+                    // Try to estimate bitrate
+                    if let estimatedBitrate = try? await audioTrack.load(.estimatedDataRate), estimatedBitrate > 0 {
+                        let bitrateKbps = Int(estimatedBitrate / 1000)
                         await MainActor.run {
-                            mediaItem.audioSampleRate = sampleRate
-                            mediaItem.audioChannels = channels
+                            mediaItem.audioBitrate = bitrateKbps
+                        }
+                        print("✅ [Audio Metadata] AVFoundation detected bitrate: \(bitrateKbps) kbps")
+                    } else {
+                        // AVFoundation failed to get bitrate, try FFmpeg for just bitrate
+                        print("⚠️ [Audio Metadata] AVFoundation failed to get bitrate, trying FFmpeg")
+                        
+                        if let ffmpegInfo = await FFmpegAudioProbe.probeAudioFile(at: url) {
+                            await MainActor.run {
+                                if let bitrate = ffmpegInfo.bitrate {
+                                    mediaItem.audioBitrate = bitrate
+                                    print("✅ [Audio Metadata] FFmpeg detected bitrate: \(bitrate) kbps")
+                                }
+                                
+                                // Also fill in other missing info if needed
+                                if mediaItem.audioSampleRate == nil, let sampleRate = ffmpegInfo.sampleRate {
+                                    mediaItem.audioSampleRate = sampleRate
+                                }
+                                if mediaItem.audioChannels == nil, let channels = ffmpegInfo.channels {
+                                    mediaItem.audioChannels = channels
+                                }
+                            }
+                        } else {
+                            // FFmpeg also failed, try calculation
+                            print("⚠️ [Audio Metadata] FFmpeg probe failed, trying calculation")
+                            if let calculatedBitrate = FFmpegAudioProbe.calculateAverageBitrate(fileURL: url, duration: durationSeconds) {
+                                await MainActor.run {
+                                    mediaItem.audioBitrate = calculatedBitrate
+                                    print("✅ [Audio Metadata] Calculated average bitrate: \(calculatedBitrate) kbps")
+                                }
+                            }
                         }
                     }
                 }
                 
-                // 尝试估算比特率
-                if let estimatedBitrate = try? await audioTrack.load(.estimatedDataRate), estimatedBitrate > 0 {
-                    let bitrateKbps = Int(estimatedBitrate / 1000)
-                    await MainActor.run {
-                        mediaItem.audioBitrate = bitrateKbps
-                    }
-                    print("✅ [Audio Metadata] AVFoundation 检测到比特率: \(bitrateKbps) kbps")
-                } else {
-                    // AVFoundation 检测失败，使用 FFmpeg 作为回退
-                    print("⚠️ [Audio Metadata] AVFoundation 无法检测比特率，尝试使用 FFmpeg")
-                    
-                    if let ffmpegInfo = await FFmpegAudioProbe.probeAudioFile(at: url) {
-                        await MainActor.run {
-                            // 使用 FFmpeg 检测到的信息
-                            if let bitrate = ffmpegInfo.bitrate {
-                                mediaItem.audioBitrate = bitrate
-                                print("✅ [Audio Metadata] FFmpeg 检测到比特率: \(bitrate) kbps")
-                            }
-                            
-                            // 如果 AVFoundation 没有检测到采样率和声道，也使用 FFmpeg 的
-                            if mediaItem.audioSampleRate == nil, let sampleRate = ffmpegInfo.sampleRate {
-                                mediaItem.audioSampleRate = sampleRate
-                            }
-                            if mediaItem.audioChannels == nil, let channels = ffmpegInfo.channels {
-                                mediaItem.audioChannels = channels
-                            }
-                        }
-                    } else {
-                        // FFmpeg 也失败，尝试计算平均比特率
-                        print("⚠️ [Audio Metadata] FFmpeg 探测失败，尝试计算平均比特率")
-                        if let calculatedBitrate = FFmpegAudioProbe.calculateAverageBitrate(fileURL: url, duration: durationSeconds) {
-                            await MainActor.run {
-                                mediaItem.audioBitrate = calculatedBitrate
-                                print("✅ [Audio Metadata] 计算得到平均比特率: \(calculatedBitrate) kbps")
-                            }
-                        } else {
-                            print("❌ [Audio Metadata] 所有方法都无法检测比特率")
-                        }
-                    }
+                // Mark as success and pending
+                await MainActor.run {
+                    mediaItem.status = .pending
                 }
-            }
-            
-            // 设置状态为等待
-            await MainActor.run {
-                mediaItem.status = .pending
+                avFoundationSuccess = true
             }
         } catch {
-            print("Failed to load audio metadata: \(error)")
-            await MainActor.run {
-                mediaItem.status = .failed
-                mediaItem.errorMessage = "Failed to load audio metadata"
+            print("⚠️ [Audio Metadata] AVFoundation failed: \(error)")
+        }
+        
+        // If AVFoundation completely failed (e.g. couldn't load duration), try full FFmpeg fallback
+        if !avFoundationSuccess {
+            print("🔄 [Audio Metadata] AVFoundation failed or invalid, trying full FFmpeg fallback...")
+            
+            if let ffmpegInfo = await FFmpegAudioProbe.probeAudioFile(at: url) {
+                await MainActor.run {
+                    // Use FFmpeg detected info
+                    if let duration = ffmpegInfo.duration, duration > 0 {
+                        mediaItem.duration = duration
+                    }
+                    
+                    if let bitrate = ffmpegInfo.bitrate {
+                        mediaItem.audioBitrate = bitrate
+                    }
+                    
+                    if let sampleRate = ffmpegInfo.sampleRate {
+                        mediaItem.audioSampleRate = sampleRate
+                    }
+                    
+                    if let channels = ffmpegInfo.channels {
+                        mediaItem.audioChannels = channels
+                    }
+                    
+                    // If we got at least duration, consider it a success
+                    if (ffmpegInfo.duration ?? 0) > 0 {
+                        mediaItem.status = .pending
+                        print("✅ [Audio Metadata] Full FFmpeg fallback successful")
+                    } else {
+                        mediaItem.status = .failed
+                        mediaItem.errorMessage = "Could not determine audio duration"
+                    }
+                }
+            } else {
+                await MainActor.run {
+                    mediaItem.status = .failed
+                    mediaItem.errorMessage = "Failed to load audio metadata (AVFoundation & FFmpeg)"
+                }
             }
         }
     }
