@@ -11,6 +11,25 @@ struct ConvertMainView: View {
     var body: some View {
         NavigationView {
             List {
+                Section(header: Text("Video to Animation")) {
+                    NavigationLink(destination: VideoToAnimationView(format: .webp)) {
+                        HStack(spacing: 16) {
+                            Image(systemName: "film.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.orange)
+                                .frame(width: 40)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Video to Animation")
+                                    .font(.headline)
+                                Text("Convert video to animated WebP, AVIF, or GIF")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
                 Section(header: Text("Format Conversion")) {
                     NavigationLink(destination: ImageFormatConversionView()) {
                         HStack(spacing: 16) {
@@ -59,25 +78,6 @@ struct ConvertMainView: View {
                                 Text("Audio Format Conversion")
                                     .font(.headline)
                                 Text("MP3, M4A, FLAC, WAV")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                }
-                Section(header: Text("Video to Animation")) {
-                    NavigationLink(destination: VideoToAnimationView(format: .webp)) {
-                        HStack(spacing: 16) {
-                            Image(systemName: "film.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.orange)
-                                .frame(width: 40)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Video to Animation")
-                                    .font(.headline)
-                                Text("Convert video to animated WebP, AVIF, or GIF")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

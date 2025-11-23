@@ -17,6 +17,17 @@ struct FormatItemRow: View {
     var targetFormat: ImageFormat? = nil  // 目标格式，用于显示动画警告
     
     var body: some View {
+        // 根据文件类型获取输出格式
+        let outputFormatText: String = {
+            if item.isImage {
+                return item.outputImageFormat?.rawValue.uppercased() ?? ""
+            } else if item.isVideo {
+                return item.outputVideoFormat?.uppercased() ?? ""
+            } else if item.isAudio {
+                return item.outputAudioFormat?.rawValue.uppercased() ?? ""
+            }
+            return ""
+        }()
         VStack(alignment: .leading, spacing: 0) {
             // 音频播放进度条（仅在播放时显示）
             if item.isAudio && audioPlayer.isCurrentAudio(itemId: item.id) {
@@ -111,18 +122,6 @@ struct FormatItemRow: View {
                                         return item.fileExtension.uppercased()
                                     } else if item.isAudio {
                                         return item.fileExtension.uppercased()
-                                    }
-                                    return ""
-                                }()
-                                
-                                // 根据文件类型获取输出格式
-                                let outputFormatText: String = {
-                                    if item.isImage {
-                                        return item.outputImageFormat?.rawValue.uppercased() ?? ""
-                                    } else if item.isVideo {
-                                        return item.outputVideoFormat?.uppercased() ?? ""
-                                    } else if item.isAudio {
-                                        return item.outputAudioFormat?.rawValue.uppercased() ?? ""
                                     }
                                     return ""
                                 }()
@@ -432,7 +431,7 @@ struct FormatItemRow: View {
                 if item.status == .completed {
                     VStack(spacing: 8) {
                         HStack(spacing: 8) {
-                            if !item.isAudio {
+                            if (outputFormatText != "AVIF" && outputFormatText != "WEBP" && !item.isAudio) {
                                 Button(action: {
                                     Task { await saveToPhotos() }
                                 }) {
