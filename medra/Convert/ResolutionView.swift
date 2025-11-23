@@ -972,13 +972,15 @@ struct ResolutionView: View {
     }
     
     private func startBatchResize() {
-        isProcessing = true
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isProcessing = true
+        }
         
         Task {
-            // 重置所有项目状态，以便重新处理
+            // 重置所有项目状态并立即设置为 processing，让用户看到处理状态
             await MainActor.run {
                 for item in mediaItems {
-                    item.status = .pending
+                    item.status = .processing
                     item.progress = 0
                     item.compressedData = nil
                     item.compressedSize = 0
@@ -988,18 +990,24 @@ struct ResolutionView: View {
                 }
             }
             
+            // 让 UI 有时间更新显示 processing 状态
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            
             for item in mediaItems {
                 await resizeItem(item)
             }
             await MainActor.run {
-                isProcessing = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isProcessing = false
+                }
             }
         }
     }
     
     private func resizeItem(_ item: MediaItem) async {
+        // Status已在 startBatchResize 中设置为 processing
+        // 只需要更新进度
         await MainActor.run {
-            item.status = .processing
             item.progress = 0
         }
         
