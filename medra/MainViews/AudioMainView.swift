@@ -32,7 +32,7 @@ struct AudioMainView: View {
                     
                     NavigationLink(destination: AudioFormatConversionView()) {
                         HStack(spacing: 16) {
-                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Image(systemName: "arrow.left.arrow.right")
                                 .font(.system(size: 30))
                                 .foregroundStyle(.green)
                                 .frame(width: 40)
