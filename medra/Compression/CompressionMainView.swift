@@ -60,7 +60,7 @@ struct CompressionMainView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Audio")
                                 .font(.headline)
-                            Text("MP3, AAC, M4A, OPUS, FLAC, WAV")
+                                Text("MP3, M4A, FLAC, WAV")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

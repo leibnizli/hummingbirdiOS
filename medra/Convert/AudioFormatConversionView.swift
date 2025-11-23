@@ -297,12 +297,8 @@ struct AudioFormatConversionView: View {
             command += " -c:a copy"
         case .mp3:
             command += " -c:a libmp3lame -b:a 192k -q:a 2"
-        case .aac:
-            command += " -c:a aac -b:a 192k"
         case .m4a:
             command += " -c:a aac -b:a 192k"
-        case .opus:
-            command += " -c:a libopus -b:a 128k -vbr on"
         case .flac:
             command += " -c:a flac -compression_level 8"
         case .wav:
@@ -375,11 +371,9 @@ struct AudioFormatConversionView: View {
                         // Check if error is due to missing encoder
                         var errorDescription = "音频转换失败"
                         if errorMessage.contains("Unknown encoder") || errorMessage.contains("Encoder not found") {
-                            errorDescription = "编码器不可用，请尝试 AAC、M4A、FLAC 或 WAV 格式"
+                            errorDescription = "编码器不可用，请尝试 M4A、FLAC 或 WAV 格式"
                         } else if errorMessage.contains("libmp3lame") {
-                            errorDescription = "MP3 编码器不可用，请尝试 AAC 或 M4A 格式"
-                        } else if errorMessage.contains("libopus") {
-                            errorDescription = "OPUS 编码器不可用，请尝试 AAC 或 M4A 格式"
+                            errorDescription = "MP3 编码器不可用，请尝试 M4A 格式"
                         }
                         
                         item.status = .failed

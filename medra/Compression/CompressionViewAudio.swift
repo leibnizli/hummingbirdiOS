@@ -427,9 +427,7 @@ struct CompressionViewAudio: View {
             let ext = item.fileExtension.lowercased()
             switch ext {
             case "mp3": outputFormat = .mp3
-            case "aac": outputFormat = .aac
             case "m4a": outputFormat = .m4a
-            case "opus": outputFormat = .opus
             case "flac": outputFormat = .flac
             case "wav": outputFormat = .wav
             default: outputFormat = .mp3  // 默认使用 MP3

@@ -123,8 +123,6 @@ class FFmpegAudioCompressor {
                     errorDescription = "Encoder '\(audioFormat.encoderName)' not available. Please try AAC, M4A, FLAC, or WAV format."
                 } else if errorMessage.contains("libmp3lame") {
                     errorDescription = "MP3 encoder not available. Please try AAC format instead."
-                } else if errorMessage.contains("libopus") {
-                    errorDescription = "OPUS encoder not available. Please try AAC format instead."
                 }
                 
                 safeCompletion(.failure(NSError(domain: "FFmpeg", code: Int(returnCode?.getValue() ?? -1), userInfo: [NSLocalizedDescriptionKey: errorDescription])))
@@ -191,19 +189,9 @@ class FFmpegAudioCompressor {
             command += " -b:a \(bitrate)k"
             command += " -abr 1"  // Enable average bitrate mode for better quality at target bitrate
             
-        case .aac:
-            command += " -c:a aac"
-            command += " -b:a \(bitrate)k"
-            
         case .m4a:
             command += " -c:a aac"
             command += " -b:a \(bitrate)k"
-            
-        case .opus:
-            // Try libopus first, fallback to built-in opus encoder
-            command += " -c:a libopus"
-            command += " -b:a \(bitrate)k"
-            command += " -vbr on"  // Enable variable bitrate
             
         case .flac:
             // FLAC is lossless, no bitrate setting

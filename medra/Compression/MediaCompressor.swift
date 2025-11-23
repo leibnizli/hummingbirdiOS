@@ -22,9 +22,7 @@ enum ImageFormat: String, CaseIterable, Identifiable {
 enum AudioFormat: String, CaseIterable, Identifiable {
     case original = "Original"
     case mp3 = "MP3"
-    case aac = "AAC"
     case m4a = "M4A"
-    case opus = "OPUS"
     case flac = "FLAC"
     case wav = "WAV"
     
@@ -34,9 +32,7 @@ enum AudioFormat: String, CaseIterable, Identifiable {
         switch self {
         case .original: return "" // Will use source format
         case .mp3: return "mp3"
-        case .aac: return "aac"
         case .m4a: return "m4a"
-        case .opus: return "opus"
         case .flac: return "flac"
         case .wav: return "wav"
         }
@@ -46,9 +42,7 @@ enum AudioFormat: String, CaseIterable, Identifiable {
         switch self {
         case .original: return "Keep original format"
         case .mp3: return "Most compatible"
-        case .aac: return "Good quality"
         case .m4a: return "Apple devices"
-        case .opus: return "Best for low bitrate"
         case .flac: return "Lossless"
         case .wav: return "Uncompressed"
         }
@@ -59,9 +53,9 @@ enum AudioFormat: String, CaseIterable, Identifiable {
         switch self {
         case .original:
             return false  // Will be determined by source format
-        case .mp3, .opus:
+        case .mp3:
             return true  // Requires libmp3lame, libopus
-        case .aac, .m4a, .flac, .wav:
+        case .m4a, .flac, .wav:
             return false  // Built-in encoders
         }
     }
@@ -71,8 +65,7 @@ enum AudioFormat: String, CaseIterable, Identifiable {
         switch self {
         case .original: return "original"
         case .mp3: return "libmp3lame"
-        case .aac, .m4a: return "aac"
-        case .opus: return "libopus"
+        case .m4a: return "aac"
         case .flac: return "flac"
         case .wav: return "pcm_s16le"
         }

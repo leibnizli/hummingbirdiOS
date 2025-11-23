@@ -26,7 +26,7 @@ struct CompressionSettingsViewAudio: View {
                     } header: {
                         Text("Format Settings")
                     } footer: {
-                        Text("Choose the output audio format. Original keeps the same format as input file. MP3 and AAC are widely compatible. OPUS offers better quality at lower bitrates. FLAC is lossless. WAV is uncompressed.")
+                        Text("Choose the output audio format. Original keeps the same format as input file. MP3 and M4A are widely compatible. FLAC is lossless. WAV is uncompressed.")
                     }
                     
                     Section {
@@ -52,7 +52,7 @@ struct CompressionSettingsViewAudio: View {
                         Text("Audio Quality Settings")
                     } footer: {
                         if settings.audioFormat == .original {
-                            Text("Original format keeps the same format as input file (MP3 stays MP3, AAC stays AAC, etc.). Bitrate, sample rate, and channel settings will still apply to compress the file.")
+                            Text("Original format keeps the same format as input file (MP3 stays MP3, M4A stays M4A, etc.). Bitrate, sample rate, and channel settings will still apply to compress the file.")
                         } else if settings.audioFormat == .flac {
                             Text("FLAC is lossless compression, bitrate setting is not applicable. Original quality will be preserved.")
                         } else if settings.audioFormat == .wav {
