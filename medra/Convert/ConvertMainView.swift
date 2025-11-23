@@ -87,21 +87,7 @@ struct ConvertMainView: View {
                 }
                 Section(header: Text("Media resolution")) {
                     NavigationLink(destination: ResolutionView()) {
-                        HStack(spacing: 16) {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.orange)
-                                .frame(width: 40)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Adjust media resolution")
-                                    .font(.headline)
-                                Text("Adjust the resolution of videos and images")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 8)
+                        Text("Adjust media resolution")
                     }
                 }
             }
