@@ -12,6 +12,7 @@ import NaturalLanguage
 
 class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     @Published var isSpeaking = false
+    @Published var isSaving = false
     @Published var errorMessage: String?
     @Published var voices: [AVSpeechSynthesisVoice] = []
     
@@ -115,6 +116,8 @@ class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
             return
         }
         
+        isSaving = true // Start loading
+        
         let utterance = AVSpeechUtterance(string: text)
         utterance.rate = Float(rate)
         utterance.pitchMultiplier = Float(pitch)
@@ -126,6 +129,7 @@ class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         let fileName = "speech_\(Date().timeIntervalSince1970).wav"
         guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             errorMessage = "Failed to access Documents directory."
+            isSaving = false
             completion(nil)
             return
         }
@@ -178,6 +182,8 @@ class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
             audioFile = nil
             
             DispatchQueue.main.async {
+                self.isSaving = false // Stop loading
+                
                 if let error = errorOccurred {
                     self.errorMessage = "Failed to save file: \(error.localizedDescription)"
                     completion(nil)
@@ -277,41 +283,59 @@ struct TextToSpeechView: View {
         VStack(spacing: 20) {   
                         
             // Action Buttons
-            HStack(spacing: 20) {
-                Button(action: {
-                    viewModel.toggleSpeech(text: text)
-                }) {
-                    HStack {
-                        Image(systemName: viewModel.isSpeaking ? "stop.fill" : "play.fill")
-                        Text(viewModel.isSpeaking ? "Stop" : "Play")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(viewModel.isSpeaking ? Color.red : Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                
-                Button(action: {
-                    viewModel.saveToFile(text: text) { url in
-                        if let url = url {
-                            shareURL = url
-                            showShareSheet = true
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Button(action: {
+                        viewModel.toggleSpeech(text: text)
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: viewModel.isSpeaking ? "stop.fill" : "play.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(viewModel.isSpeaking ? "Stop" : "Play")
+                                .font(.system(size: 15, weight: .semibold))
                         }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
                     }
-                }) {
-                    HStack {
-                        Image(systemName: "square.and.arrow.down")
-                        Text("Save")
+                    .buttonStyle(.borderedProminent)
+                    .tint(viewModel.isSpeaking ? .red : .blue)
+                    
+                    Button(action: {
+                        viewModel.saveToFile(text: text) { url in
+                            if let url = url {
+                                shareURL = url
+                                showShareSheet = true
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            if viewModel.isSaving {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.system(size: 16, weight: .bold))
+                            }
+                            Text(viewModel.isSaving ? "Saving..." : "Save")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+                    .disabled(viewModel.isSaving)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(uiColor: .systemGroupedBackground))
+                
+                // Bottom Separator
+                Rectangle()
+                    .fill(Color(uiColor: .separator).opacity(0.5))
+                    .frame(height: 0.5)
             }
-            .padding(.horizontal)
             
             if let error = viewModel.errorMessage {
                 Text(error)

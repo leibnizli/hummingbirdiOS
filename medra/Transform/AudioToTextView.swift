@@ -160,20 +160,33 @@ struct AudioToTextView: View {
             }
             .padding(.horizontal)
 
-            Button(action: {
-                showFileImporter = true
-            }) {
-                HStack {
-                    Image(systemName: "doc.badge.plus")
-                    Text(selectedFileName ?? "Select Audio File")
+            // File Selection Button
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Button(action: {
+                        showFileImporter = true
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "doc.badge.plus")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(selectedFileName ?? "Select Audio File")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(uiColor: .systemGroupedBackground))
+                
+                // Bottom Separator
+                Rectangle()
+                    .fill(Color(uiColor: .separator).opacity(0.5))
+                    .frame(height: 0.5)
             }
-            .padding(.horizontal)
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: [.audio],
