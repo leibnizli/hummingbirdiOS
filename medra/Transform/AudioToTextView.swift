@@ -9,7 +9,7 @@ import SwiftUI
 import Speech
 import AVFoundation
 
-struct SpeechToTextView: View {
+struct AudioToTextView: View {
     @State private var transcription: String = ""
     @State private var isProcessing = false
     @State private var errorMessage: String?
@@ -43,7 +43,7 @@ struct SpeechToTextView: View {
         Language(name: "Russian", code: "ru-RU")
     ]
     
-    @State private var selectedLanguageCode = "en-US"
+    @AppStorage("stt_language") private var selectedLanguageCode = "en-US"
 
     var body: some View {
         VStack(spacing: 20) {
@@ -270,6 +270,6 @@ struct SpeechToTextView: View {
 
 #Preview {
     NavigationView {
-        SpeechToTextView()
+        AudioToTextView()
     }
 }

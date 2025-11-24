@@ -53,7 +53,7 @@ struct AudioMainView: View {
                         .padding(.vertical, 8)
                     }
                     
-                    NavigationLink(destination: SpeechToTextView()) {
+                    NavigationLink(destination: AudioToTextView()) {
                         HStack(spacing: 16) {
                             Image(systemName: "waveform.circle")
                                 .font(.system(size: 30))
@@ -64,6 +64,24 @@ struct AudioMainView: View {
                                 Text("Audio to Text")
                                     .font(.headline)
                                 Text("Transcribe audio to text")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    
+                    NavigationLink(destination: TextToSpeechView()) {
+                        HStack(spacing: 16) {
+                            Image(systemName: "text.bubble")
+                                .font(.system(size: 30))
+                                .foregroundStyle(.orange)
+                                .frame(width: 40)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Text to Speech")
+                                    .font(.headline)
+                                Text("Convert text to audio")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
