@@ -16,7 +16,7 @@ struct ImageMainView: View {
                         HStack(spacing: 16) {
                             Image(systemName: "arrow.down.forward.and.arrow.up.backward")
                                 .font(.system(size: 30))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.green)
                                 .frame(width: 40)
                             
                             VStack(alignment: .leading, spacing: 4) {
@@ -37,7 +37,7 @@ struct ImageMainView: View {
                         HStack(spacing: 16) {
                             Image(systemName: "arrow.left.arrow.right")
                                 .font(.system(size: 30))
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.blue)
                                 .frame(width: 40)
                             
                             VStack(alignment: .leading, spacing: 4) {

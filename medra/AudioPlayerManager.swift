@@ -134,6 +134,13 @@ class AudioPlayerManager: NSObject, ObservableObject {
     func isCurrentAudio(itemId: UUID) -> Bool {
         return currentPlayingItemId == itemId
     }
+    
+    // 跳转到指定时间
+    func seek(to time: Double) {
+        guard let player = player else { return }
+        player.currentTime = time
+        currentTime = time
+    }
 }
 
 // MARK: - AVAudioPlayerDelegate
