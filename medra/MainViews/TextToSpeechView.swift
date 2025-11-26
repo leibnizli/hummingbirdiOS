@@ -9,6 +9,7 @@ import SwiftUI
 import AVFoundation
 import Combine
 import NaturalLanguage
+import UniformTypeIdentifiers
 
 class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     @Published var isSpeaking = false
@@ -217,16 +218,25 @@ class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     }
 }
 
-struct ShareSheet: UIViewControllerRepresentable {
-    var activityItems: [Any]
-    var applicationActivities: [UIActivity]? = nil
+struct AudioFileDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.wav, .audio] }
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
-        return controller
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.data = data
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        return FileWrapper(regularFileWithContents: data)
+    }
 }
 
 struct SettingsSheet: View {
@@ -238,7 +248,6 @@ struct SettingsSheet: View {
             Form {
                 Section(header: Text("Voice")) {
                     Picker("Voice", selection: $viewModel.selectedVoiceIdentifier) {
-                        Text("Default").tag(String?.none)
                         ForEach(viewModel.voices, id: \.identifier) { voice in
                             Text("\(voice.language) - \(voice.name)").tag(Optional(voice.identifier))
                         }
@@ -276,8 +285,9 @@ struct TextToSpeechView: View {
     @State private var text: String = ""
     @State private var showFileImporter = false
     @State private var showSettings = false
-    @State private var showShareSheet = false
-    @State private var shareURL: URL?
+    @State private var showFileExporter = false
+    @State private var audioDocument: AudioFileDocument?
+    @State private var exportFileName: String = "speech.wav"
     
     var body: some View {
         VStack(spacing: 20) {   
@@ -303,8 +313,14 @@ struct TextToSpeechView: View {
                     Button(action: {
                         viewModel.saveToFile(text: text) { url in
                             if let url = url {
-                                shareURL = url
-                                showShareSheet = true
+                                do {
+                                    let data = try Data(contentsOf: url)
+                                    audioDocument = AudioFileDocument(data: data)
+                                    exportFileName = url.lastPathComponent
+                                    showFileExporter = true
+                                } catch {
+                                    viewModel.errorMessage = "Failed to prepare file for export: \(error.localizedDescription)"
+                                }
                             }
                         }
                     }) {
@@ -314,10 +330,10 @@ struct TextToSpeechView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                     .scaleEffect(0.8)
                             } else {
-                                Image(systemName: "square.and.arrow.down")
+                                Image(systemName: "icloud.and.arrow.up")
                                     .font(.system(size: 16, weight: .bold))
                             }
-                            Text(viewModel.isSaving ? "Saving..." : "Save")
+                            Text(viewModel.isSaving ? "Saving..." : "iCloud")
                                 .font(.system(size: 15, weight: .bold))
                         }
                         .frame(maxWidth: .infinity)
@@ -383,9 +399,17 @@ struct TextToSpeechView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet(viewModel: viewModel)
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = shareURL {
-                ShareSheet(activityItems: [url])
+        .fileExporter(
+            isPresented: $showFileExporter,
+            document: audioDocument,
+            contentType: .wav,
+            defaultFilename: exportFileName
+        ) { result in
+            switch result {
+            case .success(let url):
+                print("Saved to \(url)")
+            case .failure(let error):
+                viewModel.errorMessage = "Export failed: \(error.localizedDescription)"
             }
         }
         .fileImporter(

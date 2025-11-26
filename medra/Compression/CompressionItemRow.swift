@@ -710,17 +710,20 @@ struct CompressionItemRow: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.bordered)
-                            
-                            Button(action: { shareFile(item) }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .font(.caption)
-                                    Text("Share")
-                                        .font(.caption)
+                            #if os(iOS)
+                            if (UIDevice.isIPhone) {
+                                Button(action: { shareFile(item) }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.caption)
+                                        Text("Share")
+                                            .font(.caption)
+                                    }
+                                    .frame(maxWidth: .infinity)
                                 }
-                                .frame(maxWidth: .infinity)
+                                .buttonStyle(.bordered)
                             }
-                            .buttonStyle(.bordered)
+                            #endif
                         }
                     }
                 }

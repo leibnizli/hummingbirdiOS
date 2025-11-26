@@ -51,23 +51,23 @@ struct ImageMainView: View {
                         .padding(.vertical, 8)
                     }
                     
-                    NavigationLink(destination: ResolutionView()) {
-                        HStack(spacing: 16) {
-                            Image(systemName: "aspectratio")
-                                .font(.system(size: 30))
-                                .foregroundStyle(.purple)
-                                .frame(width: 40)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Adjust Resolution")
-                                    .font(.headline)
-                                Text("Resize images")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
+//                    NavigationLink(destination: ResolutionView()) {
+//                        HStack(spacing: 16) {
+//                            Image(systemName: "aspectratio")
+//                                .font(.system(size: 30))
+//                                .foregroundStyle(.purple)
+//                                .frame(width: 40)
+//                            
+//                            VStack(alignment: .leading, spacing: 4) {
+//                                Text("Adjust Resolution")
+//                                    .font(.headline)
+//                                Text("Resize images")
+//                                    .font(.caption)
+//                                    .foregroundStyle(.secondary)
+//                            }
+//                        }
+//                        .padding(.vertical, 8)
+//                    }
                 } header: {
                     Text("Image Tools")
                 }
