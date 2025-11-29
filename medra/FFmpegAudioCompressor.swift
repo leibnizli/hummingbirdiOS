@@ -230,6 +230,8 @@ class FFmpegAudioCompressor {
                 // For simplicity, if original is selected but we must re-encode, let's default to AAC for m4a/mp4 container, or libmp3lame for mp3.
                 // Better yet, let's just let ffmpeg decide based on extension, but specify high quality.
                 command += " -b:a 192k"
+            case .webm:
+                command += " -c:a libopus -b:a 128k -vbr on"
             }
             
             command += " \"\(outputURL.path)\""
@@ -303,6 +305,11 @@ class FFmpegAudioCompressor {
         case .wav:
             // WAV is uncompressed PCM
             command += " -c:a pcm_s16le"
+            
+        case .webm:
+            command += " -c:a libopus"
+            command += " -b:a \(bitrate)k"
+            command += " -vbr on"
         }
         
         // Sample rate (not for WAV to keep original)

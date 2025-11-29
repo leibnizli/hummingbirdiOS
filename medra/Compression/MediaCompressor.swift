@@ -25,6 +25,7 @@ enum AudioFormat: String, CaseIterable, Identifiable {
     case m4a = "M4A"
     case flac = "FLAC"
     case wav = "WAV"
+    case webm = "WebM"
     
     var id: String { rawValue }
     
@@ -35,6 +36,7 @@ enum AudioFormat: String, CaseIterable, Identifiable {
         case .m4a: return "m4a"
         case .flac: return "flac"
         case .wav: return "wav"
+        case .webm: return "webm"
         }
     }
     
@@ -45,6 +47,7 @@ enum AudioFormat: String, CaseIterable, Identifiable {
         case .m4a: return "Apple devices"
         case .flac: return "Lossless"
         case .wav: return "Uncompressed"
+        case .webm: return "Web Audio"
         }
     }
     
@@ -55,6 +58,8 @@ enum AudioFormat: String, CaseIterable, Identifiable {
             return false  // Will be determined by source format
         case .mp3:
             return true  // Requires libmp3lame, libopus
+        case .webm:
+            return true  // Requires libopus
         case .m4a, .flac, .wav:
             return false  // Built-in encoders
         }
@@ -68,6 +73,7 @@ enum AudioFormat: String, CaseIterable, Identifiable {
         case .m4a: return "aac"
         case .flac: return "flac"
         case .wav: return "pcm_s16le"
+        case .webm: return "libopus"
         }
     }
 }

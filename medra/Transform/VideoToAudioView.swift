@@ -394,6 +394,8 @@ struct VideoToAudioView: View {
             command += " -vn -c:a flac -compression_level 8"
         case .wav:
             command += " -vn -c:a pcm_s16le"
+        case .webm:
+            command += " -vn -c:a libopus -b:a 128k -vbr on"
         }
         
         command += " \"\(outputURL.path)\""

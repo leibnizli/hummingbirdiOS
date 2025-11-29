@@ -303,6 +303,8 @@ struct AudioFormatConversionView: View {
             command += " -c:a flac -compression_level 8"
         case .wav:
             command += " -c:a pcm_s16le"
+        case .webm:
+            command += " -c:a libopus -b:a 128k -vbr on"
         }
         
         command += " -vn \"\(outputURL.path)\""
