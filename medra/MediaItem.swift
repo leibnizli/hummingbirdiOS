@@ -58,6 +58,9 @@ class MediaItem: Identifiable, ObservableObject {
     
     // Compressed video codec
     @Published var compressedVideoCodec: String?
+    
+    // Audio codec (e.g., "AAC", "MP3", "Opus")
+    @Published var audioCodec: String?
 
     // Video pixel format and bit depth
     @Published var videoPixelFormat: String?
@@ -316,6 +319,99 @@ class MediaItem: Identifiable, ObservableObject {
         } catch {
             print("❌ [detectVideoCodecAsync] 检测失败: \(error)")
             return nil
+        }
+    }
+    
+    // Detect audio codec from URL (async version)
+    static func detectAudioCodecAsync(from url: URL) async -> String? {
+        let asset = AVURLAsset(url: url)
+        
+        do {
+            let tracks = try await asset.loadTracks(withMediaType: .audio)
+            guard let audioTrack = tracks.first else {
+                return nil
+            }
+            
+            let formatDescriptions = audioTrack.formatDescriptions as! [CMFormatDescription]
+            guard let formatDescription = formatDescriptions.first else {
+                return nil
+            }
+            
+            let codecType = CMFormatDescriptionGetMediaSubType(formatDescription)
+            
+            let codecString = audioCodecTypeToString(codecType)
+            print("🎵 [detectAudioCodecAsync] Detected audio codec: \(codecString ?? "Unknown"), FourCC: \(String(format: "0x%08X", codecType))")
+            
+            return codecString
+        } catch {
+            print("❌ [detectAudioCodecAsync] Detection failed: \(error)")
+            return nil
+        }
+    }
+    
+    // Convert audio codec type to string
+    private static func audioCodecTypeToString(_ codecType: UInt32) -> String? {
+        let fourCCString = String(format: "%c%c%c%c",
+                          (codecType >> 24) & 0xff,
+                          (codecType >> 16) & 0xff,
+                          (codecType >> 8) & 0xff,
+                          codecType & 0xff)
+        
+        switch codecType {
+        // AAC variants
+        case kAudioFormatMPEG4AAC,
+             kAudioFormatMPEG4AAC_HE,
+             kAudioFormatMPEG4AAC_HE_V2,
+             kAudioFormatMPEG4AAC_LD,
+             kAudioFormatMPEG4AAC_ELD,
+             kAudioFormatMPEG4AAC_ELD_SBR,
+             kAudioFormatMPEG4AAC_ELD_V2,
+             kAudioFormatMPEG4AAC_Spatial:
+            return "AAC"
+            
+        // MP3
+        case kAudioFormatMPEGLayer3:
+            return "MP3"
+            
+        // Opus
+        case kAudioFormatOpus:
+            return "Opus"
+            
+        // AC3
+        case kAudioFormatAC3:
+            return "AC3"
+            
+        // Enhanced AC3 (E-AC3)
+        case kAudioFormatEnhancedAC3:
+            return "E-AC3"
+            
+        // FLAC
+        case kAudioFormatFLAC:
+            return "FLAC"
+            
+        // ALAC (Apple Lossless)
+        case kAudioFormatAppleLossless:
+            return "ALAC"
+            
+        // PCM variants (WAV)
+        case kAudioFormatLinearPCM:
+            return "PCM"
+            
+        // Vorbis
+        case 0x766F7262: // 'vorb'
+            return "Vorbis"
+            
+        // DTS
+        case 0x64747320: // 'dts '
+            return "DTS"
+            
+        // TrueHD
+        case 0x74727564: // 'trud'
+            return "TrueHD"
+            
+        default:
+            print("ℹ️ [audioCodecTypeToString] Audio codec: \(fourCCString) (0x\(String(format: "%08X", codecType)))")
+            return fourCCString
         }
     }
     

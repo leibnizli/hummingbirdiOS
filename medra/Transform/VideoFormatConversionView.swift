@@ -643,6 +643,24 @@ struct VideoFormatConversionView: View {
         }
     }
     
+    private func isAudioCodecCompatible(audioCodec: String, targetFormat: String) -> Bool {
+        let codec = audioCodec.lowercased()
+        
+        switch targetFormat {
+        case "mp4", "mov", "m4v":
+            // MP4/MOV/M4V support AAC, MP3, AC3, E-AC3
+            return codec.contains("aac") || codec == "mp3" || codec == "ac3" || codec == "e-ac3"
+            
+        case "webm":
+            // WebM supports Opus and Vorbis
+            return codec == "opus" || codec == "vorbis"
+            
+        default:
+            // Unknown format, safer to re-encode
+            return false
+        }
+    }
+    
     private func performRemux(for item: MediaItem,
                               sourceURL: URL,
                               outputURL: URL,
@@ -718,10 +736,20 @@ struct VideoFormatConversionView: View {
         command += " -c:v \(codec)"
         command += " -b:v \(bitrateKbps)k"
         
-        if targetFormat.lowercased() == "webm" {
-            command += " -c:a libopus -b:a 128k"
+        // Smart audio copy: Check if source audio codec is compatible with target format
+        let sourceAudioCodec = item.audioCodec ?? "Unknown"
+        let shouldCopyAudio = isAudioCodecCompatible(audioCodec: sourceAudioCodec, targetFormat: targetFormat.lowercased())
+        
+        if shouldCopyAudio {
+            command += " -c:a copy"
+            print("✅ [convertVideo] Audio codec \(sourceAudioCodec) is compatible with \(targetFormat), copying without re-encoding")
         } else {
-            command += " -c:a aac -b:a 128k"
+            if targetFormat.lowercased() == "webm" {
+                command += " -c:a libopus -b:a 128k"
+            } else {
+                command += " -c:a aac -b:a 128k"
+            }
+            print("♻️ [convertVideo] Audio codec \(sourceAudioCodec) is not compatible with \(targetFormat), re-encoding")
         }
         
         command += " -pix_fmt yuv420p"
@@ -905,6 +933,13 @@ struct VideoFormatConversionView: View {
         } else if let fallbackCodec = ffprobeInfo?.codec, !fallbackCodec.isEmpty {
             await MainActor.run {
                 mediaItem.videoCodec = fallbackCodec
+            }
+        }
+        
+        // Detect audio codec (async version for reliability)
+        if let audioCodec = await MediaItem.detectAudioCodecAsync(from: url) {
+            await MainActor.run {
+                mediaItem.audioCodec = audioCodec
             }
         }
         

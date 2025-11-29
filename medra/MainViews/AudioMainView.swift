@@ -138,7 +138,7 @@ struct AudioMainView: View {
                 selectedAudioURL = nil
             }) {
                 if let url = selectedAudioURL {
-                    AudioTrimView(audioURL: url)
+                    //AudioTrimView(audioURL: url)
                 }
             }
         }
