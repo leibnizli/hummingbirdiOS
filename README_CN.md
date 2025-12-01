@@ -82,7 +82,7 @@
 
 #### 音频压缩
 
-- 支持 MP3/M4A/AAC/WAV/FLAC/OGG 输入
+- 支持 MP3, M4A, AAC, WAV/FLAC (Auto-convert to MP3) 输入
 - 8 种码率选项（32-320 kbps）
 - 7 种采样率选项（8-48 kHz）
 - 声道选择（单声道/立体声）

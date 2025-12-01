@@ -82,7 +82,7 @@ A clean and efficient iOS app for compressing images, videos, and audio files. E
 
 #### Audio Compression
 
-- Support MP3/M4A/AAC/WAV/FLAC/OGG input
+- Support MP3, M4A, AAC, WAV/FLAC (Auto-convert to MP3) input
 - 8 bitrate options (32-320 kbps)
 - 7 sample rate options (8-48 kHz)
 - Channel selection (mono/stereo)

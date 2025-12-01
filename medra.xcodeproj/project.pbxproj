@@ -398,15 +398,20 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = medra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Medra;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app includes third-party components that may reference camera APIs, but the camera is not actually used.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Access the photo library to save the compressed images and videos.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access the photo library to select images and videos to compress.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need your permission to use speech recognition to transcribe your audio.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -454,15 +459,20 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = medra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Medra;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app includes third-party components that may reference camera APIs, but the camera is not actually used.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Access the photo library to save the compressed images and videos.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access the photo library to select images and videos to compress.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We need your permission to use speech recognition to transcribe your audio.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

@@ -349,6 +349,19 @@ struct CompressionItemRow: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 
+                                // 显示格式转换提示（针对 WAV/FLAC -> MP3）
+                                if item.isAudio {
+                                    let originalExt = item.fileExtension.uppercased()
+                                    let outputExt = item.outputAudioFormat?.rawValue.uppercased() ?? ""
+                                    
+                                    if (originalExt == "WAV" || originalExt == "FLAC") && outputExt == "MP3" {
+                                        Text("Converted to MP3 for compression")
+                                            .font(.caption2)
+                                            .foregroundStyle(.orange)
+                                            .padding(.top, 1)
+                                    }
+                                }
+                                
                                 // 显示分辨率变化（仅图片和视频）
                                 if !item.isAudio {
                                     if let originalRes = item.originalResolution, let compressedRes = item.compressedResolution {

@@ -28,7 +28,7 @@ struct CompressionSettingsViewAudio: View {
                     } header: {
                         Text("Format Settings")
                     } footer: {
-                        Text("The output format will always match the original file format (e.g. MP3 stays MP3).")
+                        Text("The output format will always match the original file format (e.g. MP3 stays MP3). WAV and FLAC files will be automatically converted to MP3 format because they are lossless and cannot be compressed by target bitrate.")
                     }
                     
                     Section {
@@ -84,6 +84,11 @@ struct CompressionSettingsViewAudio: View {
                                 HStack(alignment: .top, spacing: 8) {
                                     Text("•")
                                     Text("Channels: Won't convert mono to stereo")
+                                }
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("•")
+                                    Text("WAV/FLAC: Automatically converted to MP3 (Lossless formats)")
+                                        .foregroundStyle(.orange)
                                 }
                             }
                             .font(.caption)

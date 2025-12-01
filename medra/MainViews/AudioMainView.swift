@@ -27,7 +27,7 @@ struct AudioMainView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Compress Audio")
                                     .font(.headline)
-                                Text("MP3, M4A, AAC, FLAC, WAV, OGG")
+                                Text("MP3, M4A, AAC, WAV/FLAC (Auto-convert to MP3)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

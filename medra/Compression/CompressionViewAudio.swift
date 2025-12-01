@@ -459,6 +459,7 @@ struct CompressionViewAudio: View {
         }
         
         // 确定输出格式：如果选择"原始"，使用源文件格式
+        // 特殊处理：WAV 是无压缩格式，无法通过比特率压缩，自动转换为 MP3
         let outputFormat: AudioFormat
         if settings.audioFormat == .original {
             // 根据文件扩展名确定格式
@@ -466,8 +467,14 @@ struct CompressionViewAudio: View {
             switch ext {
             case "mp3": outputFormat = .mp3
             case "m4a": outputFormat = .m4a
-            case "flac": outputFormat = .flac
-            case "wav": outputFormat = .wav
+            case "flac":
+                // FLAC 是无损格式，无法指定目标比特率，自动转换为 MP3
+                outputFormat = .mp3
+                print("⚠️ [Audio Format] FLAC is lossless and cannot be compressed by target bitrate. Auto-converting to MP3 for compression.")
+            case "wav":
+                // WAV 无法压缩，自动转换为 MP3
+                outputFormat = .mp3
+                print("⚠️ [Audio Format] WAV is uncompressed and cannot be compressed by bitrate. Auto-converting to MP3 for compression.")
             default: outputFormat = .mp3  // 默认使用 MP3
             }
         } else {
