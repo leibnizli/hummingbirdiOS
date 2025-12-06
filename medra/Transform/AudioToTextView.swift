@@ -259,6 +259,7 @@ struct AudioToTextView: View {
         }
         
         let request = SFSpeechURLRecognitionRequest(url: url)
+        request.addsPunctuation = true
         // Force offline recognition if desired, but usually not strictly required unless network is an issue.
         // request.requiresOnDeviceRecognition = false 
         

@@ -18,8 +18,6 @@ class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     @Published var voices: [AVSpeechSynthesisVoice] = []
     
     // Settings
-    @AppStorage("tts_rate") var rate: Double = Double(AVSpeechUtteranceDefaultSpeechRate)
-    @AppStorage("tts_pitch") var pitch: Double = 1.0
     @AppStorage("tts_voice") var selectedVoiceIdentifier: String?
     
     private var synthesizer = AVSpeechSynthesizer()
@@ -93,8 +91,8 @@ class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
             }
             
             let utterance = AVSpeechUtterance(string: text)
-            utterance.rate = Float(rate)
-            utterance.pitchMultiplier = Float(pitch)
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+            utterance.pitchMultiplier = 1.0
             if let identifier = selectedVoiceIdentifier {
                 utterance.voice = AVSpeechSynthesisVoice(identifier: identifier)
             }
@@ -120,8 +118,8 @@ class SpeechViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         isSaving = true // Start loading
         
         let utterance = AVSpeechUtterance(string: text)
-        utterance.rate = Float(rate)
-        utterance.pitchMultiplier = Float(pitch)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        utterance.pitchMultiplier = 1.0
         if let identifier = selectedVoiceIdentifier {
             utterance.voice = AVSpeechSynthesisVoice(identifier: identifier)
         }
@@ -239,52 +237,13 @@ struct AudioFileDocument: FileDocument {
     }
 }
 
-struct SettingsSheet: View {
-    @ObservedObject var viewModel: SpeechViewModel
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Voice")) {
-                    Picker("Voice", selection: $viewModel.selectedVoiceIdentifier) {
-                        ForEach(viewModel.voices, id: \.identifier) { voice in
-                            Text("\(voice.language) - \(voice.name)").tag(Optional(voice.identifier))
-                        }
-                    }
-                }
-                
-                Section(header: Text("Speech Rate")) {
-                    VStack {
-                        Slider(value: $viewModel.rate, in: Double(AVSpeechUtteranceMinimumSpeechRate)...Double(AVSpeechUtteranceMaximumSpeechRate))
-                        Text(String(format: "%.2f", viewModel.rate))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Section(header: Text("Pitch")) {
-                    VStack {
-                        Slider(value: $viewModel.pitch, in: 0.5...2.0)
-                        Text(String(format: "%.2f", viewModel.pitch))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarItems(trailing: Button("Done") {
-                presentationMode.wrappedValue.dismiss()
-            })
-        }
-    }
-}
+
 
 struct TextToSpeechView: View {
     @StateObject private var viewModel = SpeechViewModel()
     @State private var text: String = ""
     @State private var showFileImporter = false
-    @State private var showSettings = false
+
     @State private var showFileExporter = false
     @State private var audioDocument: AudioFileDocument?
     @State private var exportFileName: String = "speech.wav"
@@ -353,6 +312,25 @@ struct TextToSpeechView: View {
                     .frame(height: 0.5)
             }
             
+            // Voice Picker
+            HStack {
+                Text("Voice:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Picker("Voice", selection: $viewModel.selectedVoiceIdentifier) {
+                    ForEach(viewModel.voices, id: \.identifier) { voice in
+                        Text("\(voice.language) - \(voice.name)").tag(Optional(voice.identifier))
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            
             if let error = viewModel.errorMessage {
                 Text(error)
                     .foregroundColor(.red)
@@ -390,15 +368,7 @@ struct TextToSpeechView: View {
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
         .navigationTitle("Text to Speech")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarItems(trailing: Button(action: {
-            showSettings = true
-        }) {
-            Image(systemName: "gear")
-        })
-        .sheet(isPresented: $showSettings) {
-            SettingsSheet(viewModel: viewModel)
-        }
+
         .fileExporter(
             isPresented: $showFileExporter,
             document: audioDocument,
